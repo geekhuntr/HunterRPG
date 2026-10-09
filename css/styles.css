@@ -53,17 +53,8 @@ button:disabled { opacity: .5; cursor: default; }
 .badge { display: inline-block; padding: 1px 9px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: .76rem; font-weight: 700; }
 .badge.warn { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
 
-/* instrument art */
-.art { width: 100%; height: auto; display: block; }
-.art .st { fill: var(--steel); stroke: var(--steel-line); stroke-width: 2; stroke-linejoin: round; }
-.art .st.open { fill: none; stroke-width: 5; }
-.art .st.thin { stroke-width: 3; }
-.art .ln { stroke: var(--steel-line); fill: none; stroke-linecap: round; }
-.art .ln2 { stroke: var(--steel); fill: none; stroke-linecap: round; }
-.art .hl { stroke: var(--steel-hl); stroke-width: 1.6; fill: none; opacity: .75; stroke-linecap: round; }
-.art .port { fill: var(--surface); stroke: var(--steel-line); stroke-width: 2; }
-.art .edge { fill: none; stroke: var(--steel-line); stroke-width: 1.5; stroke-dasharray: 3 2; }
-.photo { width: 100%; aspect-ratio: 2/1; object-fit: contain; display: block; border-radius: 8px; background: var(--bg); }
+/* instrument photos */
+.photo { width: 100%; height: 190px; object-fit: contain; display: block; border-radius: 8px; background: var(--bg); }
 .stage { padding: 18px; }
 
 /* session */
@@ -126,5 +117,7 @@ th { color: var(--muted); font-weight: 600; font-size: .78rem; text-transform: u
 .kbd { font-size: .75rem; color: var(--muted); text-align: center; margin-top: 8px; }
 @media (max-width: 520px) { .grades small { display: none; } .fc-in { min-height: 460px; } }
 @media (prefers-reduced-motion: reduce) { .fc-in, .bar > i, #toast { transition: none; } .tile.shake { animation: none; } }
-.face .art, .face .photo, .stage .art, .stage .photo { width: 100%; max-width: 340px; align-self: center; margin: 0 auto; flex: none; }
-.face .art { max-width: 240px; }
+
+.face .photo, .stage .photo { height: 230px; max-width: 460px; margin: 0 auto; flex: none; }
+.tile .photo { height: 70px; background: transparent; }
+.tile { min-height: 84px; }

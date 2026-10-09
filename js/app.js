@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const { INSTRUMENTS, PHASES } = window.DC_DATA;
-  const SRS = window.SRS, art = window.DC_ART;
+  const SRS = window.SRS;
   const byId = Object.fromEntries(INSTRUMENTS.map(i => [i.id, i]));
   const IDS = INSTRUMENTS.map(i => i.id);
   const KEY = 'dcTray.v1';
@@ -35,9 +35,7 @@
   // ---------- helpers ----------
   const card = (id, f) => S.cards[SRS.key(id, f)] || SRS.newCard();
   const instMastery = id => (SRS.mastery(S.cards[SRS.key(id, 'see')], Date.now()) + SRS.mastery(S.cards[SRS.key(id, 'know')], Date.now())) / 2;
-  const pic = (inst, anon) => S.photos[inst.id]
-    ? `<img class="photo" src="${S.photos[inst.id]}" alt="${anon ? 'Instrument photo' : esc(inst.name)}">`
-    : art(inst.art, anon ? 'Instrument illustration' : inst.name);
+  const pic = (inst, anon) => `<img class="photo" src="${S.photos[inst.id] || inst.img}" alt="${anon ? 'Instrument photo' : esc(inst.name)}" loading="lazy">`;
 
   function record(item, grade, chosenId) {
     ensureDay();
@@ -252,7 +250,7 @@
     const ids = shuffle(pool).slice(0, 6), t0 = Date.now();
     const miss = {}; let sel = null, left = ids.length;
     const L = shuffle(ids), R = shuffle(ids);
-    view.innerHTML = `<h1>Match</h1><p class="sub">Tap a picture, then its name. Mix-ups feed your confusion tracker.</p>
+    view.innerHTML = `<h1>Match</h1><p class="sub">Tap a photo, then its name. Mix-ups feed your confusion tracker.</p>
       <div class="match"><div class="col">${L.map(id => `<button class="tile" data-s="L" data-id="${id}" aria-label="Instrument picture">${pic(byId[id], true)}</button>`).join('')}</div>
       <div class="col">${R.map(id => `<button class="tile" data-s="R" data-id="${id}">${esc(byId[id].name)}</button>`).join('')}</div></div><div id="fb"></div>`;
     view.querySelector('.match').onclick = e => {
@@ -288,10 +286,10 @@
         ${pic(i, hide)}<h3 class="nm">${hide ? '???' : esc(i.name)}</h3><div><span class="pill">${esc(PHASES[i.phase])}</span></div>
         <div class="det" hidden><p>${esc(i.use)}</p><p><b>Look for:</b> ${esc(i.look)}</p><p><b>Remember:</b> ${esc(i.mnemonic)}</p></div>
         <div class="meter"><i style="width:${pct(instMastery(i.id))}%"></i></div>
-        <div class="photo-act row"><label class="btn" style="padding:4px 10px;font-size:.78rem">${S.photos[i.id] ? 'Replace photo' : 'Add my photo'}<input type="file" accept="image/*" hidden data-up="${i.id}"></label>
-        ${S.photos[i.id] ? `<button data-rm="${i.id}" style="padding:4px 10px;font-size:.78rem">Use illustration</button>` : ''}</div></div>`).join('') || '<p>No matches.</p>';
+        <div class="photo-act row"><label class="btn" style="padding:4px 10px;font-size:.78rem">${S.photos[i.id] ? 'Replace my photo' : 'Use my own photo'}<input type="file" accept="image/*" hidden data-up="${i.id}"></label>
+        ${S.photos[i.id] ? `<button data-rm="${i.id}" style="padding:4px 10px;font-size:.78rem">Back to tray photo</button>` : ''}</div></div>`).join('') || '<p>No matches.</p>';
     };
-    view.innerHTML = `<h1>The tray</h1><p class="sub">Tap a card to reveal what it does. Use “hide names” to self-test, and add photos of your facility’s real instruments.</p>
+    view.innerHTML = `<h1>The tray</h1><p class="sub">Photos are from your labeled tray. Tap a card to reveal what it does, or use “hide names” to self-test.</p>
       <div class="row" style="margin-bottom:14px"><input type="search" id="q" placeholder="Search instruments" style="flex:1;min-width:160px" aria-label="Search">
       <select id="ph" style="width:auto" aria-label="Filter by phase"><option value="">All phases</option>${Object.entries(PHASES).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select>
       <label class="row" style="gap:6px"><input type="checkbox" id="hide"> Hide names</label></div><div class="lib" id="lib"></div>`;

@@ -159,13 +159,14 @@
     return spread(all.slice(0, count).map(x => x.item));
   }
 
+  // Keep priority order, but never put the same instrument twice in a row when avoidable.
   function spread(list) {
-    const out = list.slice();
-    for (let i = 1; i < out.length; i++) {
-      if (out[i].id === out[i - 1].id) {
-        const j = out.findIndex((x, k) => k > i && x.id !== out[i - 1].id && x.id !== (out[i + 1] || {}).id);
-        if (j > -1) { const t = out[i]; out[i] = out[j]; out[j] = t; }
-      }
+    const rest = list.slice(), out = [];
+    while (rest.length) {
+      const prev = out.length ? out[out.length - 1].id : null;
+      let k = rest.findIndex(x => x.id !== prev);
+      if (k < 0) k = 0;
+      out.push(rest.splice(k, 1)[0]);
     }
     return out;
   }

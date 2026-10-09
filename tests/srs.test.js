@@ -47,32 +47,33 @@ test('grading from quiz answers', () => {
   assert.equal(SRS.gradeFromAnswer({ correct: true, ms: 1500, close: true }), 1);
 });
 test('typed answers: exact, alias, typo, wrong', () => {
-  const h = INSTRUMENTS.find(i => i.id === 'hegar');
-  assert.equal(SRS.checkTyped('Hegar dilators', h), 'exact');
-  assert.equal(SRS.checkTyped('hegar', h), 'exact');
-  assert.equal(SRS.checkTyped('Hegarr dilator', h), 'close');
+  const h = INSTRUMENTS.find(i => i.id === 'hanks');
+  assert.equal(SRS.checkTyped('Hanks dilators', h), 'exact');
+  assert.equal(SRS.checkTyped('hank', h), 'exact');
+  assert.equal(SRS.checkTyped('Hankss dilator', h), 'close');
   assert.equal(SRS.checkTyped('sound', h), 'wrong');
   assert.equal(SRS.checkTyped('', h), 'wrong');
 });
 test('queue: due before new, respects new limit, no adjacent repeats', () => {
   const ids = INSTRUMENTS.map(i => i.id), cards = {};
-  cards[SRS.key('ring', 'see')] = Object.assign(SRS.newCard(), { state: 'review', interval: 3, due: t0 - DAY, last: t0 - 4 * DAY });
+  cards[SRS.key('sponge', 'see')] = Object.assign(SRS.newCard(), { state: 'review', interval: 3, due: t0 - DAY, last: t0 - 4 * DAY });
   cards[SRS.key('sound', 'know')] = Object.assign(SRS.newCard(), { state: 'review', interval: 3, due: t0 + 2 * DAY, last: t0 });
   const q = SRS.buildQueue(cards, ids, t0, { newLimit: 4, newDone: 0 });
   assert.equal(q.length, 5); // 1 due + 4 new; the not-yet-due card is excluded
-  assert.ok(q.some(x => x.id === 'ring' && x.facet === 'see'));
+  assert.ok(q.some(x => x.id === 'sponge' && x.facet === 'see'));
   assert.ok(!q.some(x => x.id === 'sound' && x.facet === 'know'));
   for (let i = 1; i < q.length; i++) assert.notEqual(q[i].id, q[i - 1].id);
   assert.equal(SRS.buildQueue(cards, ids, t0, { newLimit: 4, newDone: 4 }).length, 1);
 });
 test('distractors prefer look-alikes and past confusions', () => {
-  const t = INSTRUMENTS.find(i => i.id === 'hegar');
+  const t = INSTRUMENTS.find(i => i.id === 'hanks');
   const d = SRS.pickDistractors(t, INSTRUMENTS, {}, 2, () => 0).map(x => x.id).sort();
-  assert.deepEqual(d, ['pratt', 'sound']);
-  const d2 = SRS.pickDistractors(t, INSTRUMENTS, { hegar: { ovum: 5 } }, 1, () => 0);
-  assert.equal(d2[0].id, 'ovum');
+  assert.deepEqual(d, ['goodell', 'sound']);
+  const d2 = SRS.pickDistractors(t, INSTRUMENTS, { hanks: { polyp: 5 } }, 1, () => 0);
+  assert.equal(d2[0].id, 'polyp');
 });
-test('every instrument has art key and required fields', () => {
-  for (const i of INSTRUMENTS) for (const k of ['id', 'name', 'phase', 'family', 'art', 'use', 'look', 'mnemonic']) assert.ok(i[k], i.id + ' missing ' + k);
+test('every instrument has a photo file and required fields', () => {
+  for (const i of INSTRUMENTS) for (const k of ['id', 'name', 'phase', 'family', 'img', 'use', 'look', 'mnemonic']) assert.ok(i[k], i.id + ' missing ' + k);
+  for (const i of INSTRUMENTS) assert.ok(require('fs').existsSync(require('path').join(__dirname, '..', i.img)), i.img + ' missing');
 });
 console.log(n + ' tests passed');

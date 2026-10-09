@@ -26,8 +26,8 @@ Progress, mix-ups and uploaded photos are stored in the browser's `localStorage`
 
 ## Customising
 
-* Edit `js/data.js` to match your facility's tray (names, aliases, descriptions, phases).
-* Each instrument's illustration is a stylised SVG in `js/art.js`; on the Tray page you can upload your own photo for any card.
+* Edit `js/data.js` to match your tray (names, aliases, descriptions, phases). The set currently mirrors the labeled tray photo: 17 items.
+* Instrument photos live in `assets/img/<id>.jpg` and are crops of the labeled tray photo (handwritten labels removed). Swap a file to change a picture, or use the Tray page to override one with your own photo in the browser.
 
 ## Tests
 
