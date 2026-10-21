@@ -3890,12 +3890,13 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
   }
 
   // ---------- Compare ----------
-  const PAIRS = [['allis', 'babcock'], ['kelly', 'crile'], ['mayo-curved', 'metz'], ['mayo-straight', 'mayo-curved'], ['yankauer', 'poole'], ['yankauer', 'frazier'], ['richardson', 'deaver'], ['senn', 'armynavy']];
+  const PAIRS = [['allis', 'babcock'], ['kelly', 'crile'], ['mayo-curved', 'metz'], ['mayo-straight', 'mayo-curved'], ['kocher', 'kelly'], ['mosquito', 'crile'], ['towel-perf', 'towel-non'], ['adson', 'smooth-short'], ['yankauer', 'poole'], ['yankauer', 'frazier'], ['richardson', 'deaver'], ['senn', 'armynavy'], ['jacobs', 'skene'], ['endometrial', 'endocervical'], ['cervdil', 'goodell'], ['sims', 'auvard'], ['polyp', 'bozeman']];
   const pairModels = p => p.map(r => modelOfRec[r]);
   function viewCompare() {
     const avail = PAIRS.map((p, i) => ({ p, i, ok: pairModels(p).every(Boolean) }));
     const cur = avail[CMP.i] && avail[CMP.i].ok ? avail[CMP.i] : null;
-    const tabs = avail.map(a => `<button class="btn sm" data-act="cmp" data-v="${a.i}" aria-pressed="${a.i === CMP.i}" ${a.ok ? '' : 'disabled'}>${esc(byId[a.p[0]].name.replace(/ (hemostat|forceps|scissors.*)$/, ''))} vs ${esc(byId[a.p[1]].name.replace(/ (hemostat|forceps|scissors.*)$/, ''))}${a.ok ? '' : ' (model pending)'}</button>`).join('');
+    const short = r => r.name.replace(/ \(.*\)$/, '').replace(/ (hemostat|forceps|tissue forceps|retractor|suction tip|clamp|curette|scissors, |thumb forceps)$/i, '').replace(/^Mayo scissors, /, 'Mayo ');
+    const tabs = avail.map(a => `<button class="btn sm" data-act="cmp" data-v="${a.i}" aria-pressed="${a.i === CMP.i}" ${a.ok ? '' : 'disabled'}>${esc(short(byId[a.p[0]]))} vs ${esc(short(byId[a.p[1]]))}${a.ok ? '' : ' (model pending)'}</button>`).join('');
     if (!cur) return `<div class="panel"><h2>Side-by-side comparison</h2><p>Side-by-side 3D comparison needs a finished model for both instruments. ${avail.filter(a => !a.ok).length} comparison pairs are waiting on models.</p><div class="row">${tabs}</div></div>`;
     const [a, b] = cur.p.map(i => byId[i]), card = COMPARES.find(c => c.items.some(it => it.rec === a.id) && c.items.some(it => it.rec === b.id));
     return `<div class="row" style="margin-bottom:10px">${tabs}</div>
