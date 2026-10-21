@@ -149,16 +149,15 @@
     return U.sweep(pts, () => HC.legR, 120, 14);
   }
   const hemoBuild = frame({
-    ring: { cx: -12.15, cy: 1.23, rx: 1.3, ry: 1.2, wall: 0.34 }, cx: -3.45, size: 20.0, openA: 0.03, r: 0.035,
+    ring: { cx: -12.15, cy: 1.23, rx: 1.3, ry: 1.2, wall: 0.34 }, cx: -3.45, size: 20.0, openA: 0.03, r: 0.05,
     cl: isB => [...handleCL(-11.35), [0.6, -0.16], ...sideCL(isB, x => -(HC.face + hcHW(x)))(jawXs)],
     hw: hcHW,
     th: x => (x < 0.3 ? 0.28 : Math.max(0.15, (0.28 - 0.04 * sm(4.5, 6.4, x)) * (0.55 + 0.45 * nose(x)))),
     ratchet: null,
-    extras(g, c) { // rounded nose over the bar end, then the groove: two low rails along each jaw face where the clip leg sits
-      const nose = U.mesh(new T.SphereGeometry(0.076, 24, 14), c.steel, 'jaws'); nose.scale.set(1, 0.97, 1); nose.position.copy(c.end).addScaledVector(c.tan, -0.03); g.add(nose);
+    extras(g, c) { // groove: two low lips along each jaw face where the clip leg sits
       const xs = []; for (let x = 5.9; x <= HC.tipX - 0.08; x += 0.05) xs.push(x);
       const cl = sideCL(c.isB, () => -(HC.face + 0.01))(xs); // low lips standing ~0.15 mm proud of the flat face, either side of the leg
-      for (const z of [0.06, -0.06]) g.add(U.mesh(U.bar(cl, () => 0.025, 0.04, () => z, 40, 0.012), c.steel, 'jaws'));
+      for (const z of [0.056, -0.056]) g.add(U.mesh(U.bar(cl, () => 0.025, 0.036, () => z, 40, 0.012), c.steel, 'jaws'));
     },
     init(grp) { const m = U.mesh(clipGeo(0), U.steel({ color: 0xd9cfba, roughness: 0.3 }), 'clip'); grp.userData.clip = m; grp.add(m); },
     onOpen(grp, a) { const m = grp.userData.clip; if (!m) return; m.geometry.dispose(); m.geometry = clipGeo(a); }

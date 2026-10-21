@@ -20,7 +20,7 @@
     const pos = [], idx = [], F = m + 1, ring = 2 * F + 4, segs = [[0, m], [F, F + m], [2 * F, 2 * F + 1], [2 * F + 2, 2 * F + 3]];
     for (let i = 0; i <= n; i++) {
       const a = P[Math.max(0, i - 1)], c = P[Math.min(n, i + 1)], tx = c.x - a.x, ty = c.y - a.y, l = Math.hypot(tx, ty) || 1, nx = -ty / l, ny = tx / l, s = i / n;
-      const e = (1 - s) * Lc, k = rad && e < rad ? Math.sqrt(Math.max(0, 1 - Math.pow((rad - e) / rad, 2))) : 1, w = (wFn(s) / 2) * Math.max(0.1, k), d = dFn(s) * k * k, t = (typeof th === 'function' ? th(s) : th) / 2;
+      const e = (1 - s) * Lc, k = rad && e < rad ? Math.sqrt(Math.max(0, 1 - Math.pow((rad - e) / rad, 2))) : 1, w = (wFn(s) / 2) * Math.max(0.05, k), d = dFn(s) * k * k, t = (typeof th === 'function' ? th(s) : th) / 2;
       const pt = (u, side) => { const o = -d * (1 - u * u) + side * t; return [P[i].x + nx * o, P[i].y + ny * o, u * w]; };
       for (let j = 0; j <= m; j++) pos.push(...pt(1 - (2 * j) / m, -1)); // back face, z from +w to -w
       for (let j = 0; j <= m; j++) pos.push(...pt(-1 + (2 * j) / m, 1)); // front face, z from -w to +w
@@ -29,7 +29,7 @@
     for (let i = 0; i < n; i++) for (const [j0, j1] of segs) for (let j = j0; j < j1; j++) { const a = i * ring + j, b = a + 1, c = (i + 1) * ring + j, d = c + 1; idx.push(a, b, c, b, d, c); }
     const outline = [...Array(2 * F).keys()];
     for (const end of [0, n]) { const ci = pos.length / 3; let cx = 0, cy = 0, cz = 0; for (const j of outline) { cx += pos[(end * ring + j) * 3]; cy += pos[(end * ring + j) * 3 + 1]; cz += pos[(end * ring + j) * 3 + 2]; } pos.push(cx / outline.length, cy / outline.length, cz / outline.length);
-      for (let q = 0; q < outline.length; q++) { const a = end * ring + outline[q], b = end * ring + outline[(q + 1) % outline.length]; end ? idx.push(ci, b, a) : idx.push(ci, a, b); } }
+      for (let q = 0; q < outline.length; q++) { const a = end * ring + outline[q], b = end * ring + outline[(q + 1) % outline.length]; end ? idx.push(ci, a, b) : idx.push(ci, b, a); } }
     const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals(); return g;
   }
   // Round rod along a 3D path whose radius may depend on the angle around it (fluting); parallel-transport frames, closed ends.
@@ -336,14 +336,14 @@
     far.add(U.mesh(trough(p2, s => 1.7 + 1.3 * sm(b2 - 0.3, b2, s), s => -(0.35 + 0.2 * sm(b2 - 0.2, b2, s)), 0.2, 1.5), steel, 'speculum'));
     // retractor with ribbed hollow grip and hooked end; its larger blade sits outside the speculum's near blade
     const G = new T.Group(); G.position.y = 1.7; g.add(G);
-    const p3 = [[0.3, 0], [5, 0], [7.1, 0], ...arc(7.1, -1.2, 1.2, Math.PI / 2, 0, 8).slice(1), [8.3, -5], [8.15, -9], [7.9, -11.0]], L3 = lenOf(p3), b3 = (6.8 + 0.6 * Math.PI) / L3;
+    const p3 = [[1.0, 0], [5, 0], [7.1, 0], ...arc(7.1, -1.2, 1.2, Math.PI / 2, 0, 8).slice(1), [8.3, -5], [8.15, -9], [7.9, -11.0]], L3 = lenOf(p3), b3 = (6.1 + 0.6 * Math.PI) / L3;
     G.add(U.mesh(trough(p3, s => 1.4 + 2.6 * sm(b3 - 0.25, b3, s), s => 0.15 + 0.6 * sm(b3 - 0.25, b3 + 0.1, s), 0.22, 2.0), steel, 'grip'));
     const hp = [[0.8, 0.25, 0], [-3.5, 1.75, 0], [-8.4, 3.45, 0], [-9.7, 3.85, 0], [-10.9, 3.45, 0], [-11.5, 2.3, 0], [-11.35, 0.75, 0], [-10.95, -0.2, 0]], Lh = lenOf(hp), sh = 9.75 / Lh;
     G.add(U.mesh(rod(hp, s => { if (s < sh) { const u = s / sh, base = 0.6 + 0.75 * u, f = (u * 5) % 1; return base * (0.86 + 0.14 * Math.pow(f, 0.8)) * (u < 0.04 ? 0.7 + 7.5 * u : 1); } const e = (1 - s) * Lh; return (1.05 - 0.3 * (s - sh) / (1 - sh)) * (e < 0.25 ? Math.sqrt(Math.max(0.02, 1 - Math.pow((0.25 - e) / 0.25, 2))) : 1); }, 420, 32), steel, 'grip'));
     return { group: g, setOpen() {}, center: new T.Vector3(-3.2, -3.4, 0), size: 26 };
   }
   reg('sims', { build: sims, parts: [['speculum', 'Double-ended Sims speculum (two blade sizes)'], ['collar', 'Collar on the speculum handle'], ['grip', 'Sims retractor with ribbed hollow grip']], partViews: { speculum: 'blades', collar: 'oblique', grip: 'oblique' },
-    views: views([-3.2, -3.4, 0], 26, { jawsOblique: { pos: [15.5, 3.5, 9.5], tgt: [6.8, -4.5, 0] }, tip: { pos: [10, -18, 6], tgt: [6.7, -9.5, 0] }, blades: { pos: [-4.5, -8, 22], tgt: [-4.5, -4.5, 0] } }),
+    views: views([-3.2, -3.4, 0], 26, { jawsOblique: { pos: [13.5, 2.5, 8.5], tgt: [6.8, -4.5, 0] }, tip: { pos: [10, -18, 6], tgt: [6.7, -9.5, 0] }, blades: { pos: [-4.5, -8, 22], tgt: [-4.5, -4.5, 0] } }),
     status: { state: 'complete-v1', reviewed: false, note: 'Procedural model compared against the student’s tray photo, which shows two pieces under the “Simms retractor” label: a double-ended speculum (a blade bent about 90 degrees at each end, joined through a cylindrical collar, the far blade lying twisted toward the camera) and a single-bladed Sims-type retractor with a ribbed hollow grip ending in a hook. Both are modeled as photographed. Blade widths (along the viewing axis) cannot be measured from a top-down photo and come from catalog sizes; the collar may be a joint between two parts, which could not be confirmed.' },
     dims: 'Speculum about 27 cm end to end (photo); blades about 9 × 3.5 cm and 7.5 × 3 cm (Red Cross / MSF Sims size 2: 80 × 35 and 75 × 30 mm). Grip retractor blade about 11 × 4 cm, handle about 9.5 cm (photo). Approximate.' });
 

@@ -54,15 +54,16 @@
   }
   // prism: closed polygon profile in the X-Z plane ([[x, z], ...], may be non-convex), extruded across Y from y0 to y1
   function prismY(acc, prof, y0, y1) {
+    const f0 = typeof y0 === 'function' ? y0 : () => y0, f1 = typeof y1 === 'function' ? y1 : () => y1;
     const P = prof.slice(); if (T.ShapeUtils.isClockWise(P.map(p => V2(p[0], p[1])))) P.reverse();
     for (const [i, j, k] of T.ShapeUtils.triangulateShape(P.map(p => V2(p[0], p[1])), [])) {
       const a = P[i]; let b = P[j], c = P[k];
       if ((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]) < 0) { const q = b; b = c; c = q; }
-      acc.t([a[0], y0, a[1]], [b[0], y0, b[1]], [c[0], y0, c[1]]); // CCW in x-z -> normal -Y
-      acc.t([a[0], y1, a[1]], [c[0], y1, c[1]], [b[0], y1, b[1]]);
+      acc.t([a[0], f0(a[0]), a[1]], [b[0], f0(b[0]), b[1]], [c[0], f0(c[0]), c[1]]); // CCW in x-z -> normal -Y
+      acc.t([a[0], f1(a[0]), a[1]], [c[0], f1(c[0]), c[1]], [b[0], f1(b[0]), b[1]]);
     }
     for (let i = 0; i < P.length; i++) {
-      const p = P[i], q = P[(i + 1) % P.length], A = [p[0], y0, p[1]], B = [q[0], y0, q[1]], C = [q[0], y1, q[1]], D = [p[0], y1, p[1]];
+      const p = P[i], q = P[(i + 1) % P.length], A = [p[0], f0(p[0]), p[1]], B = [q[0], f0(q[0]), q[1]], C = [q[0], f1(q[0]), q[1]], D = [p[0], f1(p[0]), p[1]];
       acc.t(A, C, B); acc.t(A, D, C);
     }
   }
@@ -93,7 +94,7 @@
     for (const end of [0, n]) { const ci = pos.length / 3; let cx = 0, cy = 0, cz = 0; for (let j = 0; j < m; j++) { cx += pos[(end * m + j) * 3] / m; cy += pos[(end * m + j) * 3 + 1] / m; cz += pos[(end * m + j) * 3 + 2] / m; } pos.push(cx, cy, cz); for (let j = 0; j < m; j++) { const a = end * m + j, b2 = end * m + ((j + 1) % m); end ? idx.push(ci, a, b2) : idx.push(ci, b2, a); } }
     const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals(); return g;
   }
-  const stations = (x0, x1, xf, coarse = 0.03, fine = 0.004) => { const xs = []; for (let x = x0; x < x1 - 1e-9;) { xs.push(x); x += x < xf ? coarse : fine; } xs.push(x1); return xs; };
+  const stations = (x0, x1, xf, coarse = 0.03, fine = 0.006) => { const xs = []; for (let x = x0; x < x1 - 1e-9;) { xs.push(x); x += x < xf ? coarse : fine; } xs.push(x1); return xs; };
   const straightBar = (x0, x1, hwX, thX, zX, n, r) => U.bar([[x0, 0], [x1, 0]], s => hwX(x0 + s * (x1 - x0)), s => thX(x0 + s * (x1 - x0)), zX, n, r);
 
   /* ------------------------------------------------------------------ thumb forceps factory
@@ -111,7 +112,10 @@
     const zi = x => gapX(x) + h * U.smooth(xp, xe, x);       // inner face of blade A
     const zc = x => zi(x) + thX(x) / 2;                     // blade centre
     const zo = x => zi(x) + thX(x);                         // outer face
-    const a = o.tip === 'teeth' ? o.teeth.a : 0, xEnd = L - a; // blade body ends here; teeth carry on to L
+    // 1x2 teeth zone: tooth hooks occupy [xA, L]; blade A's bar narrows to the single tooth's width just before xA,
+    // blade B's bar stops at xB and its two teeth are separated by a V notch (xB..xA) that receives A's tooth
+    const a = o.tip === 'teeth' ? o.teeth.a : 0, xA = L - 0.6 * a, xB = xA - 0.06, cl = 0.007;
+    const wE = hwX(xA), wA = wE / 3 - cl;
     const rTip = hwX(L);
     const hwT = x => { // rounded tip in face view for the untoothed tips
       if (a || x < L - rTip) return hwX(x);
@@ -125,7 +129,8 @@
     function blade(isB) {
       const g = new T.Group(), steel = U.steel();
       // one swept bar (smooth normals across the seam), split into the blade and the tip part
-      const bar = capsApart(flatBar(stations(o.J - 0.35, xEnd, xEnd - 0.25), hwT, thT, zcT, R));
+      const hwB = !a || isB ? hwT : x => { const w = hwX(x); return w + (wA - w) * U.smooth(xA - 0.1, xA, x); };
+      const bar = capsApart(flatBar(stations(o.J - 0.35, !a ? L : isB ? xB : xA, xe), hwB, thT, zcT, R));
       g.add(U.mesh(splitBar(bar.side, x => x < xe), steel, 'blades'));
       g.add(U.mesh(splitBar(bar.side, x => x >= xe), steel, 'tips'));
       g.add(U.mesh(bar.caps, steel, 'tips'));
@@ -138,20 +143,29 @@
       g.add(U.mesh(rib.geo(), steel, 'grip'));
       const tip = new Acc(), t = thX(L);
       if (o.serr) { // fine transverse serrations on the inner face; blade B offset half a pitch so the ridges mesh
-        const { len, pitch: p, depth: d } = o.serr, stop = a ? xEnd - 0.03 : L - rTip * 0.55;
+        const { len, pitch: p, depth: d } = o.serr, stop = a ? xB - 0.03 : L - rTip * 0.55;
         for (let x = L - len + (isB ? p / 2 : 0); x + p / 2 <= stop; x += p) {
-          const yh = hwT(x) - R * 0.7; if (yh < 0.03) continue;
+          const yh = hwB(x) - R * 0.7; if (yh < 0.03) continue;
           prismY(tip, [[x - p / 2, h + 0.006], [x + p / 2, h + 0.006], [x, h - d]], -yh, yh);
         }
       }
       if (o.tip === 'teeth') { // 1x2: A = one central hooked tooth, B = two hooked teeth with a notch between
-        const { d } = o.teeth, wE = hwX(xEnd), c = 0.007, xs = xEnd - 0.02;
-        const prof = [[xs, h + 0.004], [L - 0.55 * a, h + 0.004], [L - 0.14 * a, h - d], [L, h - 0.5 * d], [L, h + t * 0.55], [L - t * 0.4, h + t - 0.004], [xs, h + t - 0.004]];
-        if (!isB) prismY(tip, prof, -(wE / 3 - c), wE / 3 - c);
-        else for (const s of [1, -1]) { const ya = s * (wE / 3 + c), yb = s * (wE - R * 0.6); prismY(tip, prof, Math.min(ya, yb), Math.max(ya, yb)); }
+        const { d } = o.teeth, zb = h + 0.004, zt = h + t - 0.004, xs = xA - 0.005;
+        const hook = [[xs, zb], [xA, zb], [L - 0.15 * a, h - d], [L, h + 0.2 * t], [L - 0.5 * t, zt], [xs, zt]]; // pointed tooth, bevelled end
+        if (!isB) prismY(tip, [[xA - 0.02, zb], ...hook.slice(1, 5), [xA - 0.02, zt]], -wA, wA);
+        else {
+          const yo = wE - R * 0.6, yv = x => 0.004 + (wA + cl - 0.004) * Math.min(1, Math.max(0, (x - xB) / (xA - xB))); // V notch edge
+          for (const s of [1, -1]) {
+            const lo = f => s > 0 ? f : x => -yo, hi = f => s > 0 ? () => yo : x => -f(x);
+            prismY(tip, [[xB - 0.02, zb], [xB, zb], [xB, zt], [xB - 0.02, zt]], s > 0 ? 0.004 : -yo, s > 0 ? yo : -0.004);
+            prismY(tip, [[xB, zb], [xA, zb], [xA, zt], [xB, zt]], lo(yv), hi(yv));
+            prismY(tip, hook, s > 0 ? wA + cl : -yo, s > 0 ? yo : -(wA + cl));
+          }
+        }
       }
       if (o.tip === 'debakey') { // longitudinal rows of tiny teeth: A one central row, B two rows that flank it
-        const rows = isB ? [[0.04, 0.082], [-0.082, -0.04]] : [[-0.028, 0.028]], xa = L - o.P + 0.15, xb = L - 0.14, p = 0.036;
+        const yo = x => Math.min(0.082, hwT(x) - 0.75 * R);
+        const rows = isB ? [[0.04, yo], [x => -yo(x), -0.04]] : [[-0.028, 0.028]], xa = L - o.P + 0.15, xb = L - 0.05, p = 0.036;
         for (const [y0, y1] of rows) {
           const prof = [[xa, h + 0.006]]; let k = 0;
           for (let x = xa + (isB ? p / 2 : 0); x < xb; x += p / 2, k++) prof.push([x, k % 2 ? h - 0.024 : h - 0.011]);
@@ -174,7 +188,7 @@
       const a1 = blade(false); a1.position.x = -xp; A.add(a1); A.position.x = xp;
       const b1 = blade(true); b1.position.x = -xp; Bm.add(b1); Bm.scale.z = -1; Bp.add(Bm); Bp.position.x = xp;
       grp.add(A, Bp);
-      const th = Math.atan(0.6 / (L - xp));
+      const th = Math.atan(0.05 * L / (L - xp)); // tips about 0.1 x L apart when fully open
       const open = k => { A.rotation.y = -k * th; Bp.rotation.y = k * th; };
       open(0);
       return { group: grp, setOpen: open, center: new T.Vector3(L / 2, 0, 0), size: L };
@@ -188,6 +202,7 @@
       oblique: { pos: [L / 2 + 7, 13, 22], tgt: [L / 2, 0, 0] },
       tip: { pos: [L - 0.55, 2.5, 0.02], tgt: [L - 0.55, 0, 0] },
       jawsOblique: { pos: [L + 1.6, 1.25, 1.5], tgt: [L - 0.3, 0, 0] },
+      jawsInner: { pos: [L + 1.6, 1.25, -1.5], tgt: [L - 0.3, 0, 0] },
       grip: { pos: [gm + 1.8, 3.2, 6.2], tgt: [gm, 0, 0.3] },
       joint: { pos: [o.J + 2.2, 2.6, 3.8], tgt: [o.J * 0.6, 0, 0] }
     };
@@ -198,12 +213,12 @@
   const PV = { blades: 'side', grip: 'grip', tips: 'jawsOblique', joint: 'joint' };
   const reg = (id, o, note, dims) => {
     const f = thumb(o);
-    ST3D.models[id] = { id, recordId: id, build: f.build, hasArticulation: true, parts: PARTS, partViews: PV, views: f.views, status: { state: 'complete-v1', reviewed: false, note }, dims };
+    ST3D.models[id] = { id, recordId: id, build: f.build, hasArticulation: true, parts: PARTS, partViews: PV, views: f.views, status: { state: 'complete-v1', reviewed: true, note }, dims };
   };
   const COMMON = ' Procedural educational model, not a scan; no photographs could be reached while building it, so widths, thickness, spread, rib pitch and tooth/serration sizes are approximations from catalog text.';
 
   reg('adson', { L: 12, hw: [[0, 0.4], [0.1, 0.47], [0.55, 0.48], [0.64, 0.15], [0.8, 0.125], [1, 0.11]], th: [0.13, 0.09], gap: 0.42, peak: 0.42, P: 0.8, J: 1.1,
-    tip: 'teeth', teeth: { a: 0.2, d: 0.12 }, grip: [0.18, 0.5] },
+    tip: 'teeth', teeth: { a: 0.10, d: 0.05 }, grip: [0.18, 0.5] },
   'Adson with teeth: short (12 cm), wide flat ribbed grip that narrows sharply at shoulders into a slender tip about 2 mm wide; one tooth on one blade meets two teeth on the other (1x2) and they interlock when closed. Some Adsons also have a small serrated platform behind the teeth; this one shows teeth only.' + COMMON,
   'About 12 cm (4¾ in); grip about 9.5 mm wide, tip about 2.2 mm wide with 1×2 teeth. Widths and tooth size approximate.');
 
@@ -216,12 +231,12 @@
   reg('smooth-long', Object.assign({}, LONG, { P: 1.8, tip: 'serr', serr: { len: 1.6, pitch: 0.055, depth: 0.024 } }),
   'Smooth thumb forceps, long: the same plain serrated, untoothed tip as the short smooth forceps on a 25 cm body for deep work. Length varies by maker (about 20-30 cm); 25 cm (10 in) shown.' + COMMON,
   'About 25 cm (10 in); tip about 2.8 mm wide with fine cross-serrations. Approximate.');
-  reg('toothed-long', Object.assign({}, LONG, { P: 1.0, tip: 'teeth', teeth: { a: 0.24, d: 0.14 } }),
+  reg('toothed-long', Object.assign({}, LONG, { P: 1.0, tip: 'teeth', teeth: { a: 0.12, d: 0.06 } }),
   'Toothed thumb forceps, long: same 25 cm body as the long smooth forceps, but the tip ends in 1x2 interlocking teeth instead of serrations. Tooth count (1x2 vs 2x3) varies by maker; 1x2 shown.' + COMMON,
   'About 25 cm (10 in); tip about 2.8 mm wide with 1×2 teeth. Approximate.');
 
   reg('rat', { L: 14, hw: [[0, 0.42], [0.1, 0.5], [0.4, 0.49], [0.8, 0.27], [1, 0.17]], th: [0.18, 0.13], gap: 0.48, peak: 0.4, P: 0.9, J: 1.3,
-    tip: 'teeth', teeth: { a: 0.28, d: 0.17 }, grip: [0.2, 0.5] },
+    tip: 'teeth', teeth: { a: 0.15, d: 0.08 }, grip: [0.2, 0.5] },
   'Rat-tooth forceps: 14 cm, thicker and wider than the Adson with a gradual taper (no sharp shoulders) and larger 1x2 interlocking teeth at a ~3.4 mm tip. The student list writes "rat/mouse tooth"; both names are used for this toothed pattern, and some makers use "mouse tooth" for finer teeth, so confirm with your instructor.' + COMMON,
   'About 14 cm (5½ in); tip about 3.4 mm wide with 1×2 teeth. Approximate.');
 
@@ -231,14 +246,14 @@
   'About 20 cm (8 in); tips about 2.1 mm wide with longitudinal tooth rows (1 row meets 2) over the last ~2.3 cm. Approximate.');
 
   reg('ferris', { L: 18, hw: [[0, 0.55], [0.1, 0.68], [0.5, 0.66], [0.82, 0.27], [1, 0.19]], th: [0.2, 0.13], gap: 0.5, peak: 0.4, P: 1.5, J: 1.4,
-    tip: 'teeth', teeth: { a: 0.28, d: 0.16 }, serr: { len: 1.3, pitch: 0.06, depth: 0.024 }, grip: [0.18, 0.5] },
+    tip: 'teeth', teeth: { a: 0.15, d: 0.08 }, serr: { len: 1.3, pitch: 0.06, depth: 0.024 }, grip: [0.18, 0.5] },
   'Ferris-Smith tissue forceps: heavy 18 cm (7 in) forceps with a broad flat handle (~1.35 cm), a ~3.5 mm tip with a serrated platform and 1x2 teeth. The student list says "Ferris-Smith or Bonnie": a Bonney forceps is a similar heavy 1x2-toothed forceps (usually with a narrower handle); this model shows the Ferris-Smith pattern, so confirm which one your tray uses.' + COMMON,
   'About 18 cm (7 in); handle about 1.35 cm wide; tip about 3.8 mm wide with serrated platform and 1×2 teeth. Approximate.');
 
   /* ------------------------------------------------------------------ #3 knife (scalpel) handle
      Flat handle 12.5 cm, centred on the origin, blade fitting toward +X. */
   function knife() {
-    const grp = new T.Group(), steel = U.steel(), X0 = -6.25, XS = 4.15, XT = 6.25, TH = 0.24, TF = 0.13;
+    const grp = new T.Group(), steel = U.steel(), X0 = -6.25, XS = 4.15, XT = 6.25, TH = 0.24, TF = 0.10;
     const hw = mono([[X0, 0.44], [-5.6, 0.47], [2.3, 0.47], [3.5, 0.31], [XS, 0.29]]);
     // handle outline (face view): squared butt with rounded corners, gentle neck down to the shoulder at XS
     const rc = 0.2, o = [];
@@ -253,11 +268,12 @@
     const fw = 0.21, fs = new T.Shape(); fs.moveTo(XS - 0.2, -fw); fs.lineTo(XT - fw, -fw); fs.absarc(XT - fw, 0, fw, -Math.PI / 2, Math.PI / 2, false); fs.lineTo(XS - 0.2, fw); fs.lineTo(XS - 0.2, -fw);
     grp.add(U.mesh(U.extrude(fs, TF, 0.025), steel, 'fitting'));
     // raised central rail on each face with an undercut groove along each side (the blade's slot rides in the grooves)
-    const rail = new Acc(), zf = TF / 2, xa = XS - 0.03, xb = XT - 0.3;
-    prismY(rail, [[xa, zf - 0.012], [xb - 0.04, zf - 0.012], [xb - 0.04, zf + 0.032], [xa, zf + 0.032]], -0.05, 0.05);
-    prismY(rail, [[xa, zf + 0.032], [xb - 0.03, zf + 0.032], [xb - 0.11, zf + 0.066], [xa, zf + 0.066]], -0.1, 0.1);
+    // neck 1.4 mm wide, cap 2.4 mm wide -> 0.5 mm undercut groove each side; kept inside the handle thickness
+    const rail = new Acc(), zf = TF / 2, xa = XS, xb = XT - 0.3;
+    prismY(rail, [[xa, zf - 0.012], [xb - 0.06, zf - 0.012], [xb - 0.06, zf + 0.03], [xa, zf + 0.03]], -0.07, 0.07);
+    prismY(rail, [[xa, zf + 0.03], [xb, zf + 0.03], [xb - 0.12, zf + 0.066], [xa, zf + 0.066]], -0.12, 0.12); // distal end chamfered
     // knurled grip band (small pyramids) on both faces
-    const kn = new Acc(), p = 0.085, z0 = TH / 2 - 0.004, z1 = TH / 2 + 0.026;
+    const kn = new Acc(), p = 0.085, z0 = TH / 2 - 0.004, z1 = TH / 2 + 0.008;
     for (let x = -0.6; x <= 2.2; x += p) for (let y = -0.34; y <= 0.341; y += p) {
       const s = p * 0.49, c = [[x - s, y - s, z0], [x + s, y - s, z0], [x + s, y + s, z0], [x - s, y + s, z0]], ap = [x, y, z1], ins = [x, y, z0 - 0.01];
       for (let i = 0; i < 4; i++) kn.out(c[i], c[(i + 1) % 4], ap, ins);
@@ -278,7 +294,7 @@
       jawsOblique: { pos: [7.4, 1.9, 1.9], tgt: [5.2, 0, 0] },
       grip: { pos: [1.4, 1.6, 4.2], tgt: [0.8, 0, 0] }
     },
-    status: { state: 'complete-v1', reviewed: false, note: '#3 scalpel (Bard-Parker type) handle: flat 12.5 cm steel handle with a knurled grip band near the blade end and, at the tip, a thinner blade fitting with a raised central rail and an undercut groove along each side; a #10, #11, #12 or #15 blade\'s slot slides along those grooves until it seats against the shoulder. The #3L is the same fitting on a longer (~21 cm) handle. Procedural model, not a scan: rail/groove profile, knurl pattern and widths are approximations; ruler graduations and the stamped size number are not modeled, and no blade is shown.' },
+    status: { state: 'complete-v1', reviewed: true, note: '#3 scalpel (Bard-Parker type) handle: flat 12.5 cm steel handle with a knurled grip band near the blade end and, at the tip, a thinner blade fitting with a raised central rail and an undercut groove along each side; a #10, #11, #12 or #15 blade\'s slot slides along those grooves until it seats against the shoulder. The #3L is the same fitting on a longer (~21 cm) handle. Procedural model, not a scan: rail/groove profile, knurl pattern and widths are approximations; ruler graduations and the stamped size number are not modeled, and no blade is shown.' },
     dims: 'About 12.5 cm long, ~9.5 mm wide, ~2.4 mm thick; fitting ~2.3 cm long. #3L is about 21 cm. Approximate.'
   };
 })(window);
