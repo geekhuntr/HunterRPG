@@ -161,7 +161,7 @@
   // ---------------- uterine sound: malleable probe, cm marks, flat fluted paddle handle ----------------
   function sound() {
     const g = new T.Group(), steel = U.steel(), dark = darkMat();
-    const path = [[-10.6, 0, 0], [-4, -0.25, 0], [3, -0.56, 0], [8.4, -0.82, 0], [9.3, -0.98, 0], [10.2, -1.28, 0], [11.2, -1.36, 0], [13.6, -1.18, 0], [16.4, -0.92, 0]];
+    const path = [[-10.6, 0, 0], [-4, -0.25, 0], [3, -0.56, 0], [8.4, -0.82, 0], [9.6, -1.06, 0], [10.6, -1.27, 0], [11.6, -1.31, 0], [13.6, -1.16, 0], [16.4, -0.92, 0]];
     const L = lenOf(path), shaft = U.mesh(rod(path, s => { const d = s * L, e = (1 - s) * L; return e < 0.2 ? 0.185 : 0.155 + 0.13 * (1 - sm(0, 0.9, d)) + 0.04 * sm(0.7, 0.2, e); }, 360, 20), steel, 'shaft');
     g.add(shaft);
     const olive = U.mesh(new T.SphereGeometry(0.2, 24, 16), steel, 'shaft'); olive.position.copy(shaft.geometry.userData.curve.getPointAt(1)); g.add(olive);
