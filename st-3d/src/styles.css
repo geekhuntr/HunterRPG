@@ -49,6 +49,8 @@ button, select, input { font: inherit; color: inherit; }
 @media (min-width: 960px) { .vpwrap { height: calc(100vh - 170px); min-height: 520px; max-height: 820px; } }
 .vp { position: absolute; inset: 0; cursor: grab; } .vp:active { cursor: grabbing; }
 .vp-hint { position: absolute; top: 12px; left: 14px; right: 150px; color: var(--vp-ink); opacity: .8; font-size: .88rem; pointer-events: none; transition: opacity .4s; } .vp-hint.gone { opacity: 0; }
+.vp-ruler { position: absolute; top: 60px; right: 10px; background: rgba(15, 21, 26, .75); color: var(--vp-ink); border-color: #51606c; }
+.vp-ruler[aria-pressed="true"] { border-color: #e8b04a; color: #e8b04a; background: rgba(15, 21, 26, .75); }
 .vp-reset { position: absolute; top: 10px; right: 10px; background: rgba(15, 21, 26, .75); color: var(--vp-ink); border-color: #51606c; }
 .vp-views { position: absolute; left: 0; right: 0; bottom: 0; display: flex; gap: 6px; overflow-x: auto; padding: 10px 12px 12px; background: linear-gradient(transparent, rgba(8, 12, 15, .7)); }
 .vp-views.plain { position: static; background: none; padding: 6px 0; }

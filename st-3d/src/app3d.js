@@ -50,6 +50,7 @@
         <div class="vp" id="vp"></div>
         <div class="vp-hint" id="hint">Drag to rotate \u00b7 pinch or scroll to zoom</div>
         <button class="btn sm vp-reset" data-act="reset">Reset view</button>
+        <button class="btn sm vp-ruler" data-act="ruler" aria-pressed="${S.ruler !== false}">10 cm ruler</button>
         ${m.hasArticulation ? `<label class="vp-open"><span>Open / close</span><input type="range" id="open" min="0" max="100" value="${Math.round(openK * 100)}" aria-label="Open or close the instrument"></label>` : ''}
         <div class="vp-views" role="group" aria-label="Camera views">${viewButtons(m)}</div></section>
       <aside class="side" id="side">${sideInspect(m, r)}</aside></div>`;
@@ -77,7 +78,7 @@
       <details class="status"><summary>About this 3D model</summary><p>${esc(m.status.note)}</p><p class="muted">${esc(m.dims || '')}</p></details>`;
   }
   function mountInspect() {
-    viewer = new ST3D.Viewer($('#vp'), { preserve: true }); viewer.load(S.sel); viewer.setOpen(openK); window.__st3d.viewer = viewer;
+    viewer = new ST3D.Viewer($('#vp'), { preserve: true }); viewer.rulerOn = S.ruler !== false; viewer.load(S.sel); viewer.setOpen(openK); window.__st3d.viewer = viewer;
     if (activePart) viewer.highlight(activePart);
     const o = $('#open'); if (o) o.addEventListener('input', () => { openK = o.value / 100; viewer.setOpen(openK); });
     viewer.controls.addEventListener('start', () => { const h = $('#hint'); if (h) h.classList.add('gone'); });
@@ -154,6 +155,7 @@
     tab: v => { tab = v; try { history.replaceState(null, '', '#' + v); } catch (e) { /* sandbox */ } if (v === 'identify') ID = null; render(); },
     theme: () => { S.theme = { system: 'light', light: 'dark', dark: 'system' }[S.theme]; applyTheme(); save(); },
     view: v => { viewer.view(v); if (viewer2) viewer2.view(v); },
+    ruler: (v, el) => { S.ruler = S.ruler === false; save(); [viewer, viewer2].forEach(x => x && x.toggleRuler(S.ruler)); if (el) el.setAttribute('aria-pressed', S.ruler); },
     reset: () => { const o = $('#open'); if (o) o.value = 0; openK = 0; viewer.reset(); if (viewer2) viewer2.reset(); activePart = null; if (tab === 'inspect') refreshSide(); },
     reveal: () => { revealed = true; refreshSide(); },
     hide: () => { revealed = false; refreshSide(); },

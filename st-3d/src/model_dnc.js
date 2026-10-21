@@ -10,25 +10,26 @@
   const arc = (cx, cy, r, a0, a1, k = 10) => Array.from({ length: k + 1 }, (_, i) => { const a = a0 + (a1 - a0) * (i / k); return [cx + r * Math.cos(a), cy + r * Math.sin(a)]; });
   const lenOf = pts => new T.CatmullRomCurve3(pts.map(p => new T.Vector3(p[0], p[1], p[2] || 0)), false, 'centripetal').getLength();
   const darkMat = () => new T.MeshStandardMaterial({ color: 0x23282c, metalness: 0.5, roughness: 0.55 });
-  // round off the ends of a width function over `rad` cm (quarter circle)
-  const roundEnds = (wFn, L, rad, ends = [true, true], min = 0.25) => s => { const w = wFn(s), d0 = s * L, d1 = (1 - s) * L; let k = 1;
-    for (const [d, on] of [[d0, ends[0]], [d1, ends[1]]]) if (on && d < rad) k = Math.min(k, Math.sqrt(Math.max(0, 1 - Math.pow((rad - d) / rad, 2)))); return Math.max(min, w * k); };
 
   // Curved sheet (vaginal blades, speculum handles): a 2D centerline in XY, the sheet's WIDTH runs along Z and it is dished
   // by `dFn` (sagitta, cm; positive = concave toward the +normal side, i.e. away from the handle on a bent blade).
-  function trough(pts, wFn, dFn, th, n = 220, m = 20) {
-    const curve = new T.CatmullRomCurve3(pts.map(p => new T.Vector3(p[0], p[1], 0)), false, 'centripetal'), P = curve.getSpacedPoints(n);
-    const pos = [], idx = [], ring = 2 * (m + 1);
+  // `rad` rounds the far end over that many cm (width and dish shrink together along a quarter circle, so the tip stays clean).
+  function trough(pts, wFn, dFn, th, rad = 0, n = 220, m = 20) {
+    const curve = new T.CatmullRomCurve3(pts.map(p => new T.Vector3(p[0], p[1], 0)), false, 'centripetal'), P = curve.getSpacedPoints(n), Lc = curve.getLength();
+    // per ring: back face (m+1), front face (m+1), then the two rim edges with their own vertices so the edges shade crisply
+    const pos = [], idx = [], F = m + 1, ring = 2 * F + 4, segs = [[0, m], [F, F + m], [2 * F, 2 * F + 1], [2 * F + 2, 2 * F + 3]];
     for (let i = 0; i <= n; i++) {
       const a = P[Math.max(0, i - 1)], c = P[Math.min(n, i + 1)], tx = c.x - a.x, ty = c.y - a.y, l = Math.hypot(tx, ty) || 1, nx = -ty / l, ny = tx / l, s = i / n;
-      const w = wFn(s) / 2, d = dFn(s), t = (typeof th === 'function' ? th(s) : th) / 2;
-      const put = (u, side) => { const o = -d * (1 - u * u) + side * t; pos.push(P[i].x + nx * o, P[i].y + ny * o, u * w); };
-      for (let j = 0; j <= m; j++) put(1 - (2 * j) / m, -1); // back face, z from +w to -w
-      for (let j = 0; j <= m; j++) put(-1 + (2 * j) / m, 1); // front face, z from -w to +w
+      const e = (1 - s) * Lc, k = rad && e < rad ? Math.sqrt(Math.max(0, 1 - Math.pow((rad - e) / rad, 2))) : 1, w = (wFn(s) / 2) * Math.max(0.1, k), d = dFn(s) * k * k, t = (typeof th === 'function' ? th(s) : th) / 2;
+      const pt = (u, side) => { const o = -d * (1 - u * u) + side * t; return [P[i].x + nx * o, P[i].y + ny * o, u * w]; };
+      for (let j = 0; j <= m; j++) pos.push(...pt(1 - (2 * j) / m, -1)); // back face, z from +w to -w
+      for (let j = 0; j <= m; j++) pos.push(...pt(-1 + (2 * j) / m, 1)); // front face, z from -w to +w
+      pos.push(...pt(-1, -1), ...pt(-1, 1), ...pt(1, 1), ...pt(1, -1)); // rim edges
     }
-    for (let i = 0; i < n; i++) for (let j = 0; j < ring; j++) { const a = i * ring + j, b = i * ring + ((j + 1) % ring), c = (i + 1) * ring + j, d = (i + 1) * ring + ((j + 1) % ring); idx.push(a, b, c, b, d, c); }
-    for (const end of [0, n]) { const ci = pos.length / 3; let cx = 0, cy = 0, cz = 0; for (let j = 0; j < ring; j++) { cx += pos[(end * ring + j) * 3]; cy += pos[(end * ring + j) * 3 + 1]; cz += pos[(end * ring + j) * 3 + 2]; } pos.push(cx / ring, cy / ring, cz / ring);
-      for (let j = 0; j < ring; j++) { const a = end * ring + j, b = end * ring + ((j + 1) % ring); end ? idx.push(ci, b, a) : idx.push(ci, a, b); } }
+    for (let i = 0; i < n; i++) for (const [j0, j1] of segs) for (let j = j0; j < j1; j++) { const a = i * ring + j, b = a + 1, c = (i + 1) * ring + j, d = c + 1; idx.push(a, b, c, b, d, c); }
+    const outline = [...Array(2 * F).keys()];
+    for (const end of [0, n]) { const ci = pos.length / 3; let cx = 0, cy = 0, cz = 0; for (const j of outline) { cx += pos[(end * ring + j) * 3]; cy += pos[(end * ring + j) * 3 + 1]; cz += pos[(end * ring + j) * 3 + 2]; } pos.push(cx / outline.length, cy / outline.length, cz / outline.length);
+      for (let q = 0; q < outline.length; q++) { const a = end * ring + outline[q], b = end * ring + outline[(q + 1) % outline.length]; end ? idx.push(ci, b, a) : idx.push(ci, a, b); } }
     const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals(); return g;
   }
   // Round rod along a 3D path whose radius may depend on the angle around it (fluting); parallel-transport frames, closed ends.
@@ -46,7 +47,7 @@
     const inner = outer.slice().reverse().map(([r, y]) => [Math.max(0.001, r - wall), y + (r < wall * 2 ? wall : 0)]);
     const top = outer[outer.length - 1], bead = arc(top[0] - wall / 2, top[1], wall / 2 + 0.001, 0, Math.PI, 6);
     const prof = [[0.001, outer[0][1]], ...outer, ...bead.slice(1, -1), ...inner.map(([r, y]) => [r, y]), [0.001, inner[inner.length - 1][1]]];
-    const g = new T.LatheGeometry(prof.map(([r, y]) => new T.Vector2(r, y)), seg); g.computeVertexNormals(); return g;
+    return new T.LatheGeometry(prof.map(([r, y]) => new T.Vector2(r, y)), seg);
   }
   const cone = (base, dir, len, r, mat, part) => { const g = new T.ConeGeometry(r, len, 14); g.translate(0, len / 2, 0); const m = U.mesh(g, mat, part); m.position.set(...base); m.quaternion.setFromUnitVectors(new T.Vector3(0, 1, 0), new T.Vector3(...dir).normalize()); return m; };
   const rivet = (x, y, z, r, mat, part) => { const d = U.mesh(new T.SphereGeometry(r, 20, 10), mat, part); d.scale.z = 0.35; d.position.set(x, y, z); return d; };
@@ -64,7 +65,10 @@
       const g = new T.Group(), steel = U.steel(), zs = isB ? -1 : 1, R = o.ring;
       const ring = U.mesh(U.extrude(U.ringShape(R.cx, R.cy, R.rx, R.ry, R.wall), R.th, 0.06), steel, 'rings'); ring.position.z = zf(R.cx); g.add(ring);
       const jog = x => zs * 0.085 * sm(-1.4, -0.8, x) * (1 - sm(0.8, 1.4, x)) + zf(x);
-      g.add(U.mesh(U.bar(o.cl(isB), o.hw, o.th, jog, 320, 0.07), steel, 'shanks'));
+      // one continuous bar split at the pivot (seam hidden inside the box lock): shank part and jaw part are separate highlightable meshes
+      const cl = o.cl(isB), i0 = cl.findIndex(q => q[0] === 0 && q[1] === 0), P = cl.slice(0, i0 + 1), D = cl.slice(i0), Lp = lenOf(P), Ld = lenOf(D), Lt = Lp + Ld;
+      g.add(U.mesh(U.bar(P, t => o.hw((t * Lp) / Lt), o.th, jog, 220, 0.07), steel, 'shanks'));
+      g.add(U.mesh(U.bar(D, t => o.hw((Lp + t * Ld) / Lt), o.th, jog, 160, 0.07), steel, 'jaws'));
       // ratchet arm: from the shank toward the axis; front half on A, back half on B; teeth on the overlapping edge
       const { x0, x1, y } = o.ratchet, pitch = 0.17, depth = 0.09, pts = [[x0 + 0.15, y + 0.15], [x1 - 0.1, y + 0.15], [x1, -0.02]];
       for (let x = x1; x > x0 + pitch * 0.9; x -= pitch) { pts.push([x - pitch * 0.2, -0.02 - depth]); pts.push([x - pitch, -0.02]); }
@@ -157,7 +161,7 @@
   // ---------------- uterine sound: malleable probe, cm marks, flat fluted paddle handle ----------------
   function sound() {
     const g = new T.Group(), steel = U.steel(), dark = darkMat();
-    const path = [[-10.6, 0, 0], [-4, 0, 0], [3, 0, 0], [7.2, 0.04, 0], [9.6, 0.22, 0], [12.6, 0.52, 0], [16.4, 0.86, 0]];
+    const path = [[-10.6, 0, 0], [-4, -0.25, 0], [3, -0.56, 0], [8.4, -0.82, 0], [9.3, -0.98, 0], [10.2, -1.28, 0], [11.2, -1.36, 0], [13.6, -1.18, 0], [16.4, -0.92, 0]];
     const L = lenOf(path), shaft = U.mesh(rod(path, s => { const d = s * L, e = (1 - s) * L; return 0.155 + 0.13 * (1 - sm(0, 0.9, d)) + (e < 0.35 ? 0.05 * Math.sqrt(Math.max(0, 1 - Math.pow((0.35 - e) / 0.35 - 0.3, 2))) : 0) - (e < 0.06 ? 0.2 * (0.06 - e) / 0.06 : 0); }, 320, 20), steel, 'shaft');
     g.add(shaft);
     // depth marks every cm from 2 to 20 cm measured from the tip (longer mark every 5 cm)
@@ -178,8 +182,8 @@
     return { group: g, setOpen() {}, center: new T.Vector3(0, 0, 0), size: 33 };
   }
   reg('sound', { build: sound, parts: [['shaft', 'Malleable shaft'], ['marks', 'Centimeter depth marks'], ['handle', 'Flat handle']], partViews: { shaft: 'oblique', marks: 'marks', handle: 'handle' },
-    views: views([0, 0, 0], 33, { jawsOblique: { pos: [17.4, 3.4, 5.2], tgt: [14.0, 0.6, 0] }, tip: { pos: [24, 1.6, 1.4], tgt: [16.2, 0.85, 0] }, marks: { pos: [4.5, 1.5, 9], tgt: [4.5, 0.1, 0] }, handle: { pos: [-13.6, 3, 8.5], tgt: [-13.6, 0, 0] } }),
-    status: { state: 'complete-v1', reviewed: false, note: 'Procedural model compared against the student’s tray photo: long slender probe whose last ~7 cm bends gently up, a blunt slightly bulbous tip, fine depth marks along the shaft and a flat club-shaped handle with longitudinal flutes behind a small collar. The bend angle is taken from the photo (the shaft is malleable, so it varies). Marks are drawn every centimeter from 2 to 20 cm, a common layout; the exact scale on the tray instrument could not be read.' },
+    views: views([0, 0, 0], 33, { jawsOblique: { pos: [17.4, 1.6, 5.2], tgt: [13.6, -1.2, 0] }, tip: { pos: [24, -0.4, 1.4], tgt: [16.2, -0.92, 0] }, marks: { pos: [4.5, 1.0, 9], tgt: [4.5, -0.55, 0] }, handle: { pos: [-13.6, 3, 8.5], tgt: [-13.6, 0, 0] } }),
+    status: { state: 'complete-v1', reviewed: false, note: 'Procedural model compared against the student’s tray photo: long slender probe with a small S-kink about 7 cm from the tip, after which the tip section angles gently up, a blunt slightly bulbous tip, fine depth marks along the shaft and a flat club-shaped handle with longitudinal flutes behind a small collar. The bend angle is taken from the photo (the shaft is malleable, so it varies). Marks are drawn every centimeter from 2 to 20 cm, a common layout; the exact scale on the tray instrument could not be read.' },
     dims: 'About 33 cm (13 in), malleable, cm scale, flat handle (Ambler Sims uterine sound 13 in; Symmetry 13¼ in / 335 mm).' });
 
   // ---------------- endocervical curette (Kevorkian type): long octagonal handle, slim shaft, small angled cup ----------------
@@ -206,29 +210,29 @@
     sizes.forEach((W, i) => {
       const c = new T.Group(); c.position.y = ys[i]; g.add(c);
       // fluted hollow-looking handle: flat paddle, narrow neck toward the shaft, thumb dimple
-      const hw = x => (x > -6.3 ? 0.26 : 0.26 + 0.5 * sm(-6.3, -8.4, x)), out = [];
-      for (let x = -6.0; x >= -13.7; x -= 0.1) out.push([x, hw(x)]);
-      const pts = [...out, ...arc(-13.7, 0, 0.76, Math.PI / 2, 3 * Math.PI / 2, 12).slice(1, -1), ...out.slice().reverse().map(([x, y]) => [x, -y])];
-      c.add(U.mesh(U.extrude(new T.Shape(pts.map(p => new T.Vector2(p[0], p[1]))), 0.55, 0.16), steel, 'handle'));
-      for (const k of [-0.62, -0.31, 0, 0.31, 0.62]) { const fp = []; for (let x = -8.6; x >= -14.0; x -= 0.3) fp.push([x, k * hw(x) * (x < -13.7 ? Math.sqrt(Math.max(0.05, 1 - Math.pow((x + 13.7) / 0.76, 2))) : 1), 0.27]); c.add(U.mesh(U.tube(fp, 0.04, false, 40), steel, 'handle')); }
-      const dimple = new T.Mesh(new T.CircleGeometry(0.28, 28), U.steel({ color: 0x8d969d, roughness: 0.45 })); dimple.scale.x = 1.25; dimple.position.set(-7.7, 0, 0.276); dimple.userData.part = 'handle'; c.add(dimple);
+      const hw = x => (x > -4.6 ? 0.24 : 0.24 + 0.5 * sm(-4.6, -8.6, x) + 0.06 * sm(-9, -13.4, x)), out = [];
+      for (let x = -4.4; x >= -13.6; x -= 0.1) out.push([x, hw(x)]);
+      const pts = [...out, ...arc(-13.6, 0, hw(-13.6), Math.PI / 2, 3 * Math.PI / 2, 14).slice(1, -1), ...out.slice().reverse().map(([x, y]) => [x, -y])];
+      c.add(U.mesh(U.extrude(new T.Shape(pts.map(p => new T.Vector2(p[0], p[1]))), 0.75, 0.26), steel, 'handle'));
+      for (const k of [-0.5, -0.25, 0, 0.25, 0.5]) { const fp = []; for (let x = -8.4; x >= -14.0; x -= 0.3) fp.push([x, k * hw(x) * (x < -13.6 ? Math.sqrt(Math.max(0.05, 1 - Math.pow((x + 13.6) / 0.8, 2))) : 1), 0.37]); c.add(U.mesh(U.tube(fp, 0.04, false, 40), steel, 'handle')); }
+      const dimple = new T.Mesh(new T.CircleGeometry(0.28, 28), U.steel({ color: 0x8d969d, roughness: 0.45 })); dimple.scale.x = 1.25; dimple.position.set(-7.3, 0, 0.377); dimple.userData.part = 'handle'; c.add(dimple);
       // shaft
-      const lb = 14.5 - 2.1 * W, sh = [[-6.2, 0, 0], [0, 0, 0], [lb - 0.4, 0, 0], [lb + 0.02, 0, 0]], Ls = lenOf(sh);
+      const lb = 14.5 - 2.1 * W, sh = [[-4.6, 0, 0], [0, 0, 0], [lb - 0.4, 0, 0], [lb + 0.02, 0, 0]], Ls = lenOf(sh);
       c.add(U.mesh(rod(sh, s => 0.13 + 0.07 * (1 - sm(0, 3, s * Ls)) + 0.03 * (1 - sm(0, 0.5, s)), 160, 16), steel, 'shaft'));
       // teardrop loop: apex at the shaft, broad rounded cutting end at the tip; tilted 15 degrees out of the handle plane
       const loop = new T.Group(); loop.position.x = lb; loop.rotation.y = -0.26; c.add(loop);
       const Lp = 2.1 * W, R = W / 2, cx = Lp - R, side = [], tipArc = arc(cx, 0, R, -Math.PI / 2 + 0.25, Math.PI / 2 - 0.25, 14);
-      const lp = [[0, 0, 0], [cx * 0.5, R * 0.62, 0], [cx, R * 0.98, 0], ...arc(cx, 0, R, Math.PI / 2 - 0.25, -Math.PI / 2 + 0.25, 14).map(([x, y]) => [x, y, 0]), [cx, -R * 0.98, 0], [cx * 0.5, -R * 0.62, 0]];
+      const rc = 0.2, ex = Lp - 0.06, lp = [[0, 0, 0], [ex * 0.5, R * 0.5, 0], [ex - rc * 1.2, R - 0.02, 0], ...arc(ex - rc, R - rc, rc, Math.PI * 0.6, 0, 5).slice(1).map(([x, y]) => [x, y, 0]), [ex, 0, 0], ...arc(ex - rc, -R + rc, rc, 0, -Math.PI * 0.6, 5).slice(0, -1).map(([x, y]) => [x, y, 0]), [ex - rc * 1.2, -R + 0.02, 0], [ex * 0.5, -R * 0.5, 0]];
       void side; void tipArc;
       loop.add(U.mesh(U.tube(lp, 0.07, true, 160), steel, 'loop'));
       // cutting edge: the distal part of the loop is a broader curved band
-      loop.add(U.mesh(U.bar(arc(cx, 0, R - 0.02, Math.PI / 2 - 0.5, -Math.PI / 2 + 0.5, 16), () => 0.075, 0.24, () => 0, 60, 0.035), steel, 'loop'));
+      loop.add(U.mesh(U.bar([[ex - 0.06, R - rc * 1.1], [ex - 0.03, 0], [ex - 0.06, -R + rc * 1.1]], () => 0.08, 0.26, () => 0, 40, 0.035), steel, 'loop'));
     });
     return { group: g, setOpen() {}, center: new T.Vector3(0, 0, 0), size: 29 };
   }
   reg('endometrial', { build: endometrial, parts: [['loop', 'Sharp loop tips (4 sizes)'], ['shaft', 'Shafts'], ['handle', 'Fluted handles']], partViews: { loop: 'jawsOblique', shaft: 'front', handle: 'handle' },
     views: views([0, 0, 0], 29, { jawsOblique: { pos: [16.4, 4.2, 7.4], tgt: [12.6, 0, 0.3] }, tip: { pos: [21, 0.6, 2], tgt: [13.5, 0, 0] }, handle: { pos: [-10.5, 1, 10], tgt: [-10.5, 0, 0] } }),
-    status: { state: 'complete-v1', reviewed: false, note: 'Procedural model compared against the student’s tray photo: four curettes side by side, each with a teardrop loop (apex at the shaft, broad cutting end at the tip) in four graduated widths, a slim shaft and a flat fluted handle with a thumb dimple. Loop widths (about 14, 12, 10 and 8.5 mm) were measured from the photo and are approximate; the list says “confirm sizes”.' },
+    status: { state: 'complete-v1', reviewed: false, note: 'Procedural model compared against the student’s tray photo: four curettes side by side, each with a triangular loop (apex at the shaft, a straight, thickened cutting edge at the tip) in four graduated widths, a slim shaft and a flat fluted handle with a thumb dimple. Loop widths (about 14, 12, 10 and 8.5 mm) were measured from the photo and are approximate; the list says “confirm sizes”.' },
     dims: 'About 29 cm (11½ in) each, measured from the tray photo; loops about 0.85–1.4 cm wide (approximate).' });
 
   // ---------------- Hank dilators: set of 6, double-ended, S-curved, fluted larger end, stop collars ----------------
@@ -246,7 +250,7 @@
         return r; };
       const m = U.mesh(rod(path, rFn, 420, 40), steel, 'rods'); c.add(m);
       const curve = m.geometry.userData.curve;
-      for (const u of sC) for (const du of [-0.004, 0.004]) { const P = curve.getPointAt(u + du), tg = curve.getTangentAt(u + du), t = U.mesh(new T.TorusGeometry(rm + 0.02, 0.055, 10, 28), steel, 'collars'); t.position.copy(P); t.quaternion.setFromUnitVectors(new T.Vector3(0, 0, 1), tg); c.add(t); }
+      for (const u of sC) for (const du of [-0.004, 0.004]) { const P = curve.getPointAt(u + du), tg = curve.getTangentAt(u + du), t = U.mesh(new T.TorusGeometry(rm + 0.035, 0.07, 10, 28), steel, 'collars'); t.position.copy(P); t.quaternion.setFromUnitVectors(new T.Vector3(0, 0, 1), tg); c.add(t); }
     });
     return { group: g, setOpen() {}, center: new T.Vector3(0, -0.2, 0), size: 27 };
   }
@@ -277,24 +281,24 @@
     const g = new T.Group(), steel = U.steel(), PH = 0.17; // levers sit in two layers like scissors
     const lever = (sy, part) => { // sy = +1: lever whose handle is at +Y
       const L = new T.Group(), zl = sy * PH;
-      const cl = [[-14.7, 3.55], [-13.6, 3.06], [-12, 2.86], [-8.9, 2.75], [-6, 2.05], [-3, 1.05], [-1, 0.33], [0, 0], [1.5, -0.27], [3.5, -0.18], [5.2, 0.12], [6.3, 0.3], [6.6, 0.32]].map(([x, y]) => [x, sy * y]);
-      L.add(U.mesh(U.bar(cl, s => (s < 0.12 ? 0.48 - 0.18 * sm(0, 0.12, s) : 0.3 - 0.04 * sm(0.6, 0.9, s)), 0.32, () => zl, 300, 0.08), steel, part));
+      const cl = [[-14.7, 4.0], [-13.8, 3.35], [-12.6, 3.0], [-10.5, 2.82], [-8.9, 2.62], [-6, 1.85], [-3, 0.95], [-1, 0.31], [0, 0], [1.5, -0.12], [3.0, -0.06], [4.6, 0.12], [6.3, 0.3], [6.6, 0.32]].map(([x, y]) => [x, sy * y]);
+      L.add(U.mesh(U.bar(cl, s => (s < 0.12 ? 0.55 - 0.23 * sm(0, 0.12, s) : 0.32 - 0.04 * sm(0.6, 0.9, s)), 0.32, () => zl, 300, 0.08), steel, part));
       // boss where the screw passes (A) or is hinged (B)
-      const bs = U.mesh(new T.CylinderGeometry(0.42, 0.42, 0.42, 24), steel, 'screw'); bs.rotation.x = Math.PI / 2; bs.position.set(-8.9, sy * 2.75, zl); L.add(bs);
+      const bs = U.mesh(new T.CylinderGeometry(0.42, 0.42, 0.42, 24), steel, 'screw'); bs.rotation.x = Math.PI / 2; bs.position.set(-8.9, sy * 2.62, zl); L.add(bs);
       L.add(rivet(6.3, sy * 0.3, zl + sy * 0.16, 0.12, steel, 'pivot'));
       return L;
     };
     const A = lever(1, 'handles'), B = lever(-1, 'handles'); g.add(A, B);
     for (const s of [1, -1]) g.add(rivet(0, 0, s * 0.33, 0.16, steel, 'pivot'));
     // blades: inner edge straight, outer edge serrated, tips curving the same way; tongue under the opposite lever's layer
-    const tipC = x => -0.32 * Math.pow(sm(10.6, 13.3, x), 2);
+    const tipC = x => 0.3 * Math.pow(sm(10.6, 13.3, x), 2);
     const blade = sy => { const J = new T.Group(), o = [], i = [];
-      for (let x = 6.9; x <= 13.05; x += 0.05) { const serr = x > 8.7 && x < 12.9 ? U.sawtooth(x, 8.7, 12.9, 0.18, 0.07) : 0; i.push([x, sy * 0.02 + tipC(x)]); o.push([x, sy * (0.46 + serr) + tipC(x) - (x > 12.8 ? sy * 0.25 * sm(12.8, 13.05, x) : 0)]); }
-      const tip = arc(13.05, sy * 0.24 + tipC(13.05), 0.22, sy > 0 ? Math.PI / 2 : -Math.PI / 2, 0, 6);
+      for (let x = 6.9; x <= 13.05; x += 0.05) { const serr = x > 10.2 && x < 12.85 ? 0.05 * Math.pow(Math.abs(Math.sin(((x - 10.2) / 0.15) * Math.PI)), 0.6) : 0; i.push([x, sy * 0.02 + tipC(x)]); o.push([x, sy * (0.36 + serr - 0.04 * sm(7.2, 10, x)) + tipC(x) - (x > 12.85 ? sy * 0.12 * sm(12.85, 13.05, x) : 0)]); }
+      const tip = arc(13.05, sy * 0.11 + tipC(13.05), 0.1, sy > 0 ? Math.PI / 2 : -Math.PI / 2, 0, 6);
       const pts = sy > 0 ? [...i, ...tip.reverse(), ...o.reverse()] : [...o, ...tip, ...i.reverse()];
       const sh = new T.Shape(pts.map(p => new T.Vector2(p[0], p[1])));
-      J.add(U.mesh(U.extrude(sh, 0.5, 0.05), steel, 'jaws'));
-      const tg = U.mesh(U.extrude(U.roundRect(5.85, sy > 0 ? 0.05 : -0.49, 1.25, 0.44, 0.15), 0.3, 0.04), steel, 'jaws'); tg.position.z = -sy * PH; J.add(tg);
+      J.add(U.mesh(U.extrude(sh, 0.4, 0.05), steel, 'jaws'));
+      const tg = U.mesh(U.extrude(U.roundRect(5.85, sy > 0 ? 0.04 : -0.4, 1.25, 0.36, 0.12), 0.3, 0.04), steel, 'jaws'); tg.position.z = -sy * PH; J.add(tg);
       J.add(rivet(6.3, sy * 0.3, -sy * (PH + 0.16), 0.12, steel, 'pivot'));
       return J; };
     const JA = blade(1), JB = blade(-1); g.add(JA, JB);
@@ -304,7 +308,7 @@
     S.add(U.mesh(thr, steel, 'screw'));
     const nut = new T.Group(); nut.add(U.mesh(rod([[0, 0, 0], [0, 0.6, 0]], (s, a) => 0.5 + 0.03 * Math.sign(Math.sin(a * 14)), 12, 56), steel, 'screw'));
     const wing = U.mesh(U.extrude(U.roundRect(-0.85, 0.05, 1.7, 0.5, 0.22), 0.22, 0.05), steel, 'screw'); nut.add(wing); S.add(nut);
-    const pA = new T.Vector2(-8.9, 2.75), pB = new T.Vector2(-8.9, -2.75);
+    const pA = new T.Vector2(-8.9, 2.62), pB = new T.Vector2(-8.9, -2.62);
     const set = k => { const f = 0.17 * k; A.rotation.z = f; B.rotation.z = -f;
       const ra = (p, a) => new T.Vector2(p.x * Math.cos(a) - p.y * Math.sin(a), p.x * Math.sin(a) + p.y * Math.cos(a));
       const qa = ra(new T.Vector2(6.3, 0.3), f), qb = ra(new T.Vector2(6.3, -0.3), -f); JA.position.set(qa.x - 6.3, qa.y - 0.3, 0); JB.position.set(qb.x - 6.3, qb.y + 0.3, 0);
@@ -313,7 +317,7 @@
     return { group: g, setOpen: set, center: new T.Vector3(-0.7, 0, 0), size: 28 };
   }
   reg('goodell', { build: goodell, hasArticulation: true, parts: [['handles', 'Crossed handles'], ['pivot', 'Pivot and blade pins'], ['jaws', 'Parallel serrated blades'], ['screw', 'Spreading screw and thumb nut']], partViews: { handles: 'front', pivot: 'screw', jaws: 'jawsOblique', screw: 'thumbscrew' },
-    views: views([-0.7, 0, 0], 28, { jawsOblique: { pos: [14.6, 4.2, 6.4], tgt: [10.2, 0, 0] }, tip: { pos: [21, 0.4, 2.2], tgt: [12.5, 0, 0] }, screw: { pos: [1.5, 2.2, 6], tgt: [0.5, 0, 0] }, thumbscrew: { pos: [-7.2, 4, 9], tgt: [-8.9, 0.3, 0] } }),
+    views: views([-0.7, 0, 0], 28, { jawsOblique: { pos: [14.6, 4.2, 6.4], tgt: [10.2, 0, 0] }, tip: { pos: [21, 0.4, 2.2], tgt: [12.5, 0, 0] }, screw: { pos: [1.5, 2.2, 6], tgt: [0.5, 0, 0] }, thumbscrew: { pos: [-6.0, 4.5, 11], tgt: [-8.9, 1.0, 0] } }),
     status: { state: 'complete-v1', reviewed: false, note: 'Procedural model compared against the student’s tray photo: two levers cross at a central pivot, their distal arms run close together to pins that carry two parallel blades with serrated outer edges and slightly curved tips, and a threaded rod hinged to one handle passes through the other with a knurled thumb nut. Squeezing the handles (slider) spreads the blades; on the real instrument a parallel linkage keeps the blades parallel, which the model imitates without modeling every link.' },
     dims: 'About 28 cm (11 in) (Novo Surgical Goodell uterine dilator OB6340-21, 11 in / 28.0 cm, corrugated ends; HNM Goodell 11 in). Blade length about 7 cm measured from the photo.' });
 
@@ -323,23 +327,23 @@
     // speculum: near blade (+X) bent 90 degrees down, neck, collar, then the far channel and blade (twisted at the collar as photographed)
     const S = new T.Group(); g.add(S);
     const p1 = [[-1.8, 0], [2, 0], [4.6, 0], ...arc(4.6, -1.0, 1.0, Math.PI / 2, 0, 8).slice(1), [5.6, -3], [5.66, -6], [5.76, -9.3]], L1 = lenOf(p1), b1 = (6.4 + Math.PI / 2) / L1;
-    S.add(U.mesh(trough(p1, roundEnds(s => 1.3 + 2.2 * sm(b1 - 0.22, b1, s), L1, 1.7, [false, true], 0.4), s => 0.1 + 0.5 * sm(b1 - 0.25, b1 + 0.1, s), 0.2), steel, 'speculum'));
+    S.add(U.mesh(trough(p1, s => 1.3 + 2.2 * sm(b1 - 0.22, b1, s), s => 0.1 + 0.5 * sm(b1 - 0.25, b1 + 0.1, s), 0.2, 1.75), steel, 'speculum'));
     const col = U.mesh(new T.CylinderGeometry(0.95, 0.95, 3.6, 36), steel, 'collar'); col.rotation.z = Math.PI / 2; col.position.x = -3.55; S.add(col);
     for (const x of [-5.35, -1.75]) { const r = U.mesh(new T.TorusGeometry(0.93, 0.07, 10, 36), steel, 'collar'); r.rotation.y = Math.PI / 2; r.position.x = x; S.add(r); }
     const mouth = new T.Mesh(new T.CircleGeometry(0.82, 32), darkMat()); mouth.rotation.y = -Math.PI / 2; mouth.position.x = -5.36; mouth.userData.part = 'collar'; S.add(mouth);
-    const far = new T.Group(); far.rotation.x = -0.96; S.add(far);
+    const far = new T.Group(); far.rotation.x = -0.96; far.position.y = -0.55; S.add(far);
     const p2 = [[-5.2, 0], [-9, 0], [-13.8, 0], ...arc(-13.8, -1.0, 1.0, Math.PI / 2, Math.PI, 8).slice(1), [-14.8, -4], [-14.9, -7.6]], L2 = lenOf(p2), b2 = (8.6 + Math.PI / 2) / L2;
-    far.add(U.mesh(trough(p2, roundEnds(s => 1.7 + 1.3 * sm(b2 - 0.3, b2, s), L2, 1.5, [false, true], 0.4), s => -(0.35 + 0.2 * sm(b2 - 0.2, b2, s)), 0.2), steel, 'speculum'));
+    far.add(U.mesh(trough(p2, s => 1.7 + 1.3 * sm(b2 - 0.3, b2, s), s => -(0.35 + 0.2 * sm(b2 - 0.2, b2, s)), 0.2, 1.5), steel, 'speculum'));
     // retractor with ribbed hollow grip and hooked end; its larger blade sits outside the speculum's near blade
     const G = new T.Group(); G.position.y = 1.7; g.add(G);
-    const p3 = [[2.4, 0], [5, 0], [7.1, 0], ...arc(7.1, -1.2, 1.2, Math.PI / 2, 0, 8).slice(1), [8.3, -5], [8.15, -9], [7.9, -11.0]], L3 = lenOf(p3), b3 = (4.7 + 0.6 * Math.PI) / L3;
-    G.add(U.mesh(trough(p3, roundEnds(s => 1.4 + 2.6 * sm(b3 - 0.25, b3, s), L3, 2.0, [false, true], 0.4), s => 0.15 + 0.6 * sm(b3 - 0.25, b3 + 0.1, s), 0.22), steel, 'grip'));
-    const hp = [[2.9, 0.15, 0], [-1.5, 1.6, 0], [-5.9, 3.1, 0], [-6.8, 3.55, 0], [-7.7, 3.35, 0], [-8.2, 2.6, 0], [-8.1, 1.6, 0], [-7.75, 1.0, 0]], Lh = lenOf(hp), sh = 9.4 / Lh;
-    G.add(U.mesh(rod(hp, s => { if (s < sh) { const u = s / sh, base = 0.42 + 0.48 * u, f = (u * 5) % 1; return base * (0.8 + 0.2 * Math.pow(f, 0.8)) * (u < 0.03 ? 0.85 + 5 * u : 1); } const e = (1 - s) * Lh; return (0.74 - 0.12 * (s - sh) / (1 - sh)) * (e < 0.25 ? Math.sqrt(Math.max(0.02, 1 - Math.pow((0.25 - e) / 0.25, 2))) : 1); }, 420, 32), steel, 'grip'));
+    const p3 = [[0.3, 0], [5, 0], [7.1, 0], ...arc(7.1, -1.2, 1.2, Math.PI / 2, 0, 8).slice(1), [8.3, -5], [8.15, -9], [7.9, -11.0]], L3 = lenOf(p3), b3 = (6.8 + 0.6 * Math.PI) / L3;
+    G.add(U.mesh(trough(p3, s => 1.4 + 2.6 * sm(b3 - 0.25, b3, s), s => 0.15 + 0.6 * sm(b3 - 0.25, b3 + 0.1, s), 0.22, 2.0), steel, 'grip'));
+    const hp = [[0.8, 0.25, 0], [-3.5, 1.75, 0], [-8.4, 3.45, 0], [-9.7, 3.85, 0], [-10.9, 3.45, 0], [-11.5, 2.3, 0], [-11.35, 0.75, 0], [-10.95, -0.2, 0]], Lh = lenOf(hp), sh = 9.75 / Lh;
+    G.add(U.mesh(rod(hp, s => { if (s < sh) { const u = s / sh, base = 0.6 + 0.75 * u, f = (u * 5) % 1; return base * (0.86 + 0.14 * Math.pow(f, 0.8)) * (u < 0.04 ? 0.7 + 7.5 * u : 1); } const e = (1 - s) * Lh; return (1.05 - 0.3 * (s - sh) / (1 - sh)) * (e < 0.25 ? Math.sqrt(Math.max(0.02, 1 - Math.pow((0.25 - e) / 0.25, 2))) : 1); }, 420, 32), steel, 'grip'));
     return { group: g, setOpen() {}, center: new T.Vector3(-3.2, -3.4, 0), size: 26 };
   }
   reg('sims', { build: sims, parts: [['speculum', 'Double-ended Sims speculum (two blade sizes)'], ['collar', 'Collar on the speculum handle'], ['grip', 'Sims retractor with ribbed hollow grip']], partViews: { speculum: 'blades', collar: 'oblique', grip: 'oblique' },
-    views: views([-3.2, -3.4, 0], 26, { jawsOblique: { pos: [12.5, 1.5, 9.5], tgt: [6.6, -5, 0] }, tip: { pos: [7, -19, 3], tgt: [6.5, -9.5, 0] }, blades: { pos: [-4.5, -8, 22], tgt: [-4.5, -4.5, 0] } }),
+    views: views([-3.2, -3.4, 0], 26, { jawsOblique: { pos: [15.5, 3.5, 9.5], tgt: [6.8, -4.5, 0] }, tip: { pos: [10, -18, 6], tgt: [6.7, -9.5, 0] }, blades: { pos: [-4.5, -8, 22], tgt: [-4.5, -4.5, 0] } }),
     status: { state: 'complete-v1', reviewed: false, note: 'Procedural model compared against the student’s tray photo, which shows two pieces under the “Simms retractor” label: a double-ended speculum (a blade bent about 90 degrees at each end, joined through a cylindrical collar, the far blade lying twisted toward the camera) and a single-bladed Sims-type retractor with a ribbed hollow grip ending in a hook. Both are modeled as photographed. Blade widths (along the viewing axis) cannot be measured from a top-down photo and come from catalog sizes; the collar may be a joint between two parts, which could not be confirmed.' },
     dims: 'Speculum about 27 cm end to end (photo); blades about 9 × 3.5 cm and 7.5 × 3 cm (Red Cross / MSF Sims size 2: 80 × 35 and 75 × 30 mm). Grip retractor blade about 11 × 4 cm, handle about 9.5 cm (photo). Approximate.' });
 
@@ -348,17 +352,17 @@
     const g = new T.Group(), steel = U.steel();
     const p = [[-11.6, 0], [-6, 0], [-1.2, 0], ...arc(-1.2, -1.3, 1.3, Math.PI / 2, -0.17, 10).slice(1), [0.08 - 0.17 * 5, -1.53 - 0.98 * 5], [0.08 - 0.17 * 10.5, -1.53 - 0.98 * 10.5]];
     const L = lenOf(p), bnd = (10.4 + 1.3 * (Math.PI / 2 + 0.17) / 2) / L;
-    const w = roundEnds(s => 2.4 + 2.8 * Math.exp(-Math.pow((s - bnd) / 0.07, 2)) + (s > bnd ? 1.4 * sm(bnd, bnd + 0.1, s) - 0.5 * sm(bnd + 0.2, 1, s) : 0), L, 1.8, [false, true], 0.5);
-    g.add(U.mesh(trough(p, w, s => 0.5 + 0.45 * sm(bnd, bnd + 0.15, s) - 0.15 * Math.exp(-Math.pow((s - bnd) / 0.05, 2)), 0.25), steel, 'blade'));
+    const w = s => 2.4 + 2.8 * Math.exp(-Math.pow((s - bnd) / 0.07, 2)) + (s > bnd ? 1.4 * sm(bnd, bnd + 0.1, s) - 0.5 * sm(bnd + 0.2, 1, s) : 0);
+    g.add(U.mesh(trough(p, w, s => 0.5 + 0.45 * sm(bnd, bnd + 0.15, s) - 0.15 * Math.exp(-Math.pow((s - bnd) / 0.05, 2)), 0.25, 1.9), steel, 'blade'));
     // keel (gusset) under the channel handle, from the blade back to the weight
     const kp = [[-1.2, -0.45], [-1.65, -2.2], [-1.85, -3.6]]; for (let t = 0; t <= 1.001; t += 0.1) kp.push([-1.85 - 8.6 * t, -3.6 + 3.15 * Math.pow(t, 0.55)]);
     g.add(U.mesh(U.extrude(new T.Shape(kp.map(q => new T.Vector2(q[0], q[1]))), 0.3, 0.06), steel, 'handle'));
-    const wt = U.mesh(new T.SphereGeometry(1, 48, 32), steel, 'weight'); wt.scale.set(4.2, 2.9, 2.8); wt.position.set(-15.0, -1.4, 0); g.add(wt);
-    g.add(U.mesh(U.tube([[-18.9, -0.9, 0], [-19.8, -0.75, 0], [-20.5, -1.05, 0], [-20.55, -1.7, 0], [-20.2, -2.0, 0]], 0.17, false, 60), steel, 'weight'));
+    const wt = U.mesh(new T.SphereGeometry(1, 48, 32), steel, 'weight'); wt.scale.set(4.0, 2.7, 2.6); wt.position.set(-14.8, -1.3, 0); g.add(wt);
+    g.add(U.mesh(U.tube([[-18.5, -0.9, 0], [-19.5, -0.75, 0], [-20.2, -1.05, 0], [-20.25, -1.7, 0], [-19.9, -2.0, 0]], 0.17, false, 60), steel, 'weight'));
     return { group: g, setOpen() {}, center: new T.Vector3(-9.5, -5, 0), size: 24 };
   }
   reg('auvard', { build: auvard, parts: [['blade', 'Long concave blade'], ['handle', 'Channel handle and keel'], ['weight', 'Weight (ball) and end hook']], partViews: { blade: 'jawsOblique', handle: 'oblique', weight: 'weight' },
-    views: views([-9.5, -5, 0], 24, { jawsOblique: { pos: [7.5, -2, 10], tgt: [-0.8, -6, 0] }, tip: { pos: [-1.5, -22, 2], tgt: [-1.4, -10, 0] }, weight: { pos: [-11, 4, 13], tgt: [-15, -1.4, 0] } }),
+    views: views([-9.5, -5, 0], 24, { jawsOblique: { pos: [9.5, 2.5, 13], tgt: [-0.8, -5.5, 0] }, tip: { pos: [-1.5, -22, 2], tgt: [-1.4, -10, 0] }, weight: { pos: [-11, 4, 13], tgt: [-15, -1.4, 0] } }),
     status: { state: 'complete-v1', reviewed: false, note: 'Procedural model compared against the student’s tray photo: a long concave blade bent about 80 degrees from a channel-shaped handle, a flared heel at the bend, a keel under the handle, a large egg-shaped weight and a small hook at the end. The photo shows it lying on its side at an angle, so blade length and the weight’s shape are approximations; the weight is sized to about 1.1 kg (2½ lb) of steel.' },
     dims: 'Blade about 10.5 × 3.8 cm (catalog 3¼ × 1½ in and 4 × 1⅜ in blades; MedGyn 030921-030924, GUDID Surgix/Avalign 2½–3 lb). Overall about 21 cm. Approximate.' });
 })(window);

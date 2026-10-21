@@ -30,8 +30,20 @@
       if (this.model) this.scene.remove(this.model.group);
       const def = ST3D.models[id]; this.def = def; this.model = def.build(); this.scene.add(this.model.group);
       this.canvas.setAttribute('aria-label', 'Interactive 3D model. Drag to rotate, scroll or pinch to zoom.');
-      this.setOpen(0); this.highlight(null); this.view('front', true);
+      this.addRuler(); this.setOpen(0); this.highlight(null); this.view('front', true);
     }
+    // 10 cm ruler with 1 cm ticks, lying just below the model so every instrument shows its true size
+    addRuler() {
+      if (this.ruler) this.scene.remove(this.ruler);
+      const box = new T.Box3().setFromObject(this.model.group), g = new T.Group(), mat = new T.MeshBasicMaterial({ color: 0xe8b04a, transparent: true, opacity: 0.9 });
+      const y = box.min.y - 1.2, x0 = box.min.x, z = 0;
+      const bar = new T.Mesh(new T.BoxGeometry(10, 0.06, 0.02), mat); bar.position.set(x0 + 5, y, z); g.add(bar);
+      for (let i = 0; i <= 10; i++) { const h = i % 5 === 0 ? 0.5 : 0.28, t = new T.Mesh(new T.BoxGeometry(0.05, h, 0.02), mat); t.position.set(x0 + i, y + h / 2, z); g.add(t); }
+      const c = document.createElement('canvas'); c.width = 256; c.height = 64; const k = c.getContext('2d'); k.fillStyle = '#e8b04a'; k.font = 'bold 44px sans-serif'; k.fillText('10 cm', 6, 48);
+      const lab = new T.Mesh(new T.PlaneGeometry(2.4, 0.6), new T.MeshBasicMaterial({ map: new T.CanvasTexture(c), transparent: true })); lab.position.set(x0 + 11.6, y + 0.2, z); g.add(lab);
+      g.visible = this.rulerOn !== false; this.ruler = g; this.scene.add(g); this.dirty();
+    }
+    toggleRuler(on) { this.rulerOn = on; if (this.ruler) this.ruler.visible = on; this.dirty(); }
     setOpen(k) { this.open = k; if (this.model && this.model.setOpen) this.model.setOpen(k); this.dirty(); }
     view(name, instant) {
       const v = this.def.views[name]; if (!v) return;

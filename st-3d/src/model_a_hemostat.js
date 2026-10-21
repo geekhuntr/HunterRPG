@@ -148,7 +148,10 @@
       const pts = [[a, -wb], [L - 0.04, -wb], [L, -wb + 0.04], [L, 0.03], [L - 0.035, p], [L - tt.base, 0], [a, 0]];
       const geo = new T.ExtrudeGeometry(new T.Shape(pts.map(q => new T.Vector2(q[0], q[1]))), { depth: z1 - z0 - 0.03, bevelEnabled: true, bevelThickness: 0.015, bevelSize: 0.01, bevelSegments: 2 });
       const pa = geo.attributes.position;
-      for (let i = 0; i < pa.count; i++) { const v = toLocal(path, sg, pa.getX(i), pa.getY(i), z0 + 0.015 + pa.getZ(i)); pa.setXYZ(i, v.x, v.y, v.z); }
+      // keep the prong inside the jaw's rounded-back outline (same section as jawGeometry at s = LB), so no corners stick out
+      const w = jawW(LB), h = jawH(LB), ch = Math.min(o.chamfer, w * 0.3, h * 0.4), r = Math.max(0.002, Math.min(h * 0.88, w - D / 2 - ch - 0.004));
+      const uMin = z => { const dz = Math.abs(z) - (h - r); return dz <= 0 ? -w : -w + r - Math.sqrt(Math.max(0, r * r - dz * dz)); };
+      for (let i = 0; i < pa.count; i++) { const z = clamp(z0 + 0.015 + pa.getZ(i), -h, h), v = toLocal(path, sg, pa.getX(i), Math.max(pa.getY(i), uMin(z)), z); pa.setXYZ(i, v.x, v.y, v.z); }
       geo.computeVertexNormals();
       return geo;
     }
@@ -204,7 +207,8 @@
       return { group: grp, setOpen: open, center: new T.Vector3(cX, 0, 0), size };
     }
 
-    const jcx = (jx0 + jx1) / 2 - 0.1, jcy = (jy0 + jy1) / 2, ext = Math.max(jx1 - jx0 + 0.3, (jy1 - jy0 + 0.6) * 1.5), jd = Math.max(5.2, 1.95 * ext);
+    // jaw close-ups use ONE fixed camera distance for every factory-built clamp (the Kelly's), so close-ups convey real size
+    const jcx = (jx0 + jx1) / 2 - 0.1, jcy = (jy0 + jy1) / 2, jd = 7.2;
     const jt = o.jawsTilt || 0; // tilts the jaw close-up off face-on (Kocher: shows the 1x2 tip prongs in depth)
     const rcx = (RX0 + RX1) / 2, f = (a, b) => +(a + b).toFixed(3);
     const parts = [['rings', 'Finger rings'], ['ratchet', 'Ratchet'], ['shanks', 'Shanks'], ['box', 'Box lock'], ['jaws', o.jawLabel || 'Jaws (serrated)']];
