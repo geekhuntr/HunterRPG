@@ -16,7 +16,7 @@
   const MODELS = ST3D.models, modelIds = () => Object.keys(MODELS).filter(k => MODELS[k].ready !== false);
   const modelOfRec = {}; Object.values(MODELS).forEach(m => (m.records || [m.recordId]).forEach(r => { modelOfRec[r] = m.id; }));
   const recOfModel = m => byId[MODELS[m].recordId];
-  const VIEWLABEL = { front: 'Front', back: 'Back', side: 'Edge-on', oblique: '3/4 view', jaws: 'Jaws close-up', jawsOblique: 'Jaws 3/4', jawsTop: 'Jaws from above', tip: 'Tip end-on', ratchet: 'Ratchet', box: 'Box lock', blades: 'Blades', screw: 'Pivot screw', rings: 'Rings', teeth: 'Teeth', jawsOpen: 'Jaws open' };
+  const VIEWLABEL = { front: 'Front', back: 'Back', side: 'Edge-on', oblique: '3/4 view', jaws: 'Jaws close-up', jawsOblique: 'Jaws 3/4', jawsTop: 'Jaws from above', tip: 'Tip end-on', ratchet: 'Ratchet', box: 'Box lock', blades: 'Blades', screw: 'Pivot screw', rings: 'Rings', teeth: 'Teeth', jawsOpen: 'Jaws open', jawsInner: 'Inner tip face', grip: 'Grip', joint: 'Joint' };
 
   // ---------- storage ----------
   const KEY = 'st3d.v1';

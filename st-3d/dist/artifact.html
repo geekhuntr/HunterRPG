@@ -2592,11 +2592,11 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
 
   // ---------------- Jacobs tenaculum (vulsellum): short, narrow slotted jaws ending in 2 x 2 incurved hooks ----------------
   const JAC = { ring: { cx: -13.4, cy: 2.6, rx: 1.27, ry: 1.2, wall: 0.29, th: 0.32 }, th: 0.32, ratchet: { x0: -12.5, x1: -11.6, y: 0.55 }, box: { l: 1.6, h: 0.7, t: 0.62, slant: 0.3 }, ang: 0.07, center: [-3.4, 0, 0], size: 21.6 };
-  JAC.cl = () => [...neck(JAC.ring, 0.55), [-9, 0.44], [-5, 0.25], [-2, 0.08], [0, 0], [0.8, -0.13], [1.5, -0.22], [2.5, -0.24], [6.1, -0.24], [6.5, -0.23], [6.74, -0.17], [6.82, -0.09]];
+  JAC.cl = () => [...neck(JAC.ring, 0.55), [-9, 0.44], [-5, 0.25], [-2, 0.08], [0, 0], [0.8, -0.13], [1.5, -0.22], [2.5, -0.24], [6.1, -0.24], [6.5, -0.25], [6.72, -0.22], [6.82, -0.17]];
   JAC.hw = s => (s < 0.62 ? 0.28 - 0.1 * sm(0.0, 0.62, s) : 0.18 - 0.04 * sm(0.66, 0.74, s) - 0.04 * sm(0.985, 1, s));
   JAC.jaw = (g, steel, isB, jog) => {
-    // the jaw end turns in toward its partner and splits into two side-by-side sharp teeth (2 x 2)
-    for (const z of [0.085, -0.085]) g.add(cone([6.8, -0.09, z], [-0.25, 1, 0], 0.1, 0.06, steel, 'jaws'));
+    // the jaw end turns in toward its partner and carries two side-by-side sharp teeth (2 x 2) that interleave with the partner's
+    for (const z of isB ? [0.04, -0.04] : [0.11, -0.11]) g.add(cone([6.8, -0.11, z], [-0.3, 1, 0], 0.15, 0.055, steel, 'jaws')); // A's pair interleaves with B's
   };
   // ---------------- Skene tenaculum: long jaws that bow apart into a long open loop and close to a single incurved tooth ----------------
   const SKE = { ring: { cx: -13.0, cy: 2.75, rx: 1.32, ry: 1.25, wall: 0.29, th: 0.32 }, th: 0.32, ratchet: { x0: -12.05, x1: -11.15, y: 0.55 }, box: { l: 1.6, h: 0.7, t: 0.62, slant: 0.3 }, ang: 0.06, center: [-1.0, 0, 0], size: 25.4 };
@@ -2661,8 +2661,9 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
   function sound() {
     const g = new T.Group(), steel = U.steel(), dark = darkMat();
     const path = [[-10.6, 0, 0], [-4, -0.25, 0], [3, -0.56, 0], [8.4, -0.82, 0], [9.3, -0.98, 0], [10.2, -1.28, 0], [11.2, -1.36, 0], [13.6, -1.18, 0], [16.4, -0.92, 0]];
-    const L = lenOf(path), shaft = U.mesh(rod(path, s => { const d = s * L, e = (1 - s) * L; return 0.155 + 0.13 * (1 - sm(0, 0.9, d)) + (e < 0.35 ? 0.05 * Math.sqrt(Math.max(0, 1 - Math.pow((0.35 - e) / 0.35 - 0.3, 2))) : 0) - (e < 0.06 ? 0.2 * (0.06 - e) / 0.06 : 0); }, 320, 20), steel, 'shaft');
+    const L = lenOf(path), shaft = U.mesh(rod(path, s => { const d = s * L, e = (1 - s) * L; return e < 0.2 ? 0.185 : 0.155 + 0.13 * (1 - sm(0, 0.9, d)) + 0.04 * sm(0.7, 0.2, e); }, 360, 20), steel, 'shaft');
     g.add(shaft);
+    const olive = U.mesh(new T.SphereGeometry(0.2, 24, 16), steel, 'shaft'); olive.position.copy(shaft.geometry.userData.curve.getPointAt(1)); g.add(olive);
     // depth marks every cm from 2 to 20 cm measured from the tip (longer mark every 5 cm)
     const curve = shaft.geometry.userData.curve;
     for (let cm = 2; cm <= 20; cm++) { const u = 1 - cm / L, P = curve.getPointAt(u), tg = curve.getTangentAt(u), five = cm % 5 === 0;
@@ -2681,7 +2682,7 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
     return { group: g, setOpen() {}, center: new T.Vector3(0, 0, 0), size: 33 };
   }
   reg('sound', { build: sound, parts: [['shaft', 'Malleable shaft'], ['marks', 'Centimeter depth marks'], ['handle', 'Flat handle']], partViews: { shaft: 'oblique', marks: 'marks', handle: 'handle' },
-    views: views([0, 0, 0], 33, { jawsOblique: { pos: [17.4, 1.6, 5.2], tgt: [13.6, -1.2, 0] }, tip: { pos: [24, -0.4, 1.4], tgt: [16.2, -0.92, 0] }, marks: { pos: [4.5, 1.0, 9], tgt: [4.5, -0.55, 0] }, handle: { pos: [-13.6, 3, 8.5], tgt: [-13.6, 0, 0] } }),
+    views: views([0, 0, 0], 33, { jawsOblique: { pos: [17.6, 1.4, 5.4], tgt: [14.2, -1.1, 0] }, tip: { pos: [24, -0.4, 1.4], tgt: [16.2, -0.92, 0] }, marks: { pos: [4.5, 1.0, 9], tgt: [4.5, -0.55, 0] }, handle: { pos: [-13.6, 3, 8.5], tgt: [-13.6, 0, 0] } }),
     status: { state: 'complete-v1', reviewed: false, note: 'Procedural model compared against the student’s tray photo: long slender probe with a small S-kink about 7 cm from the tip, after which the tip section angles gently up, a blunt slightly bulbous tip, fine depth marks along the shaft and a flat club-shaped handle with longitudinal flutes behind a small collar. The bend angle is taken from the photo (the shaft is malleable, so it varies). Marks are drawn every centimeter from 2 to 20 cm, a common layout; the exact scale on the tray instrument could not be read.' },
     dims: 'About 33 cm (13 in), malleable, cm scale, flat handle (Ambler Sims uterine sound 13 in; Symmetry 13¼ in / 335 mm).' });
 
@@ -2695,12 +2696,11 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
     const prof = arc(0, 0, 1, -Math.PI / 2, 0, 12).map(([x, y]) => [Math.max(0.001, x), y]);
     const cup = U.mesh(shell(prof, 0.22, 36), steel, 'cup'); cup.scale.set(0.34, 0.2, 0.17); cup.rotation.set(Math.PI / 2, 0, 0);
     const cg = new T.Group(); cg.add(cup); cg.position.set(11.62, 0.6, 0.04); cg.rotation.z = 0.95; g.add(cg);
-    for (const a of [-0.6, 0, 0.6]) g.add(cone([11.62 + 0.27 * Math.cos(0.95 + a * 0.5) * Math.cos(a), 0.6 + 0.27 * Math.sin(0.95) * Math.cos(a) , 0.05 + 0.15 * Math.sin(a)], [0, 0, 1], 0.07, 0.025, steel, 'cup'));
     return { group: g, setOpen() {}, center: new T.Vector3(0, 0, 0), size: 24 };
   }
   reg('endocervical', { build: endocervical, parts: [['handle', 'Long octagonal handle'], ['shaft', 'Slim shaft'], ['cup', 'Small cutting cup']], partViews: { handle: 'oblique', shaft: 'front', cup: 'jawsOblique' },
     views: views([0, 0, 0], 24, { jawsOblique: { pos: [13.6, 2.4, 3.6], tgt: [11.3, 0.4, 0] }, tip: { pos: [17.5, 1.8, 1.4], tgt: [11.5, 0.45, 0] } }),
-    status: { state: 'complete-v1', reviewed: false, note: 'Procedural model compared against the student’s tray photo: long eight-sided handle (almost half the length), a slim shaft and a tip that turns up into a small cutting cup. The cup is drawn as a small oval basket with a sharp rim and a few teeth; its exact size and tooth pattern could not be read from the photo.' },
+    status: { state: 'complete-v1', reviewed: false, note: 'Procedural model compared against the student’s tray photo: long eight-sided handle (almost half the length), a slim shaft and a tip that turns up into a small cutting cup. The cup is drawn as a small oval basket with a sharp rim; its exact size and tooth pattern could not be read from the photo.' },
     dims: 'About 24 cm (9½ in) measured from the tray photo against the 21.6 cm Jacobs tenaculum; cup about 6 × 3.5 mm (approximate).' });
 
   // ---------------- endometrial (Sims sharp) curettes, set of 4 graduated loops ----------------
@@ -2771,7 +2771,7 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
   }
   reg('bowls', { build: bowls, hasArticulation: true, parts: [['large', 'Large bowl (about 14 cm)'], ['small', 'Small bowl (about 9 cm)']], partViews: { large: 'oblique', small: 'jawsOblique' },
     views: { front: { pos: [0.3, -0.5, 36], tgt: [0.3, -0.5, 2] }, back: { pos: [0.3, -0.5, -32], tgt: [0.3, -0.5, 2] }, side: { pos: [0.3, -34, 3.5], tgt: [0.3, -0.5, 3] }, oblique: { pos: [10, -22, 24], tgt: [0.3, -0.5, 2.5] },
-      jawsOblique: { pos: [5.5, -13, 10], tgt: [0.8, -6.4, 1.5] }, tip: { pos: [0.3, -0.5, 14], tgt: [0.3, -0.5, 0] } },
+      jawsOblique: { pos: [7.5, -4.5, 12], tgt: [0, 5.6, 3] }, tip: { pos: [9.5, -9, 9], tgt: [1, -6.4, 2.5] } },
     status: { state: 'complete-v1', reviewed: false, note: 'Procedural model compared against the student’s tray photo: two deep, round stainless bowls with rolled rims, one about 1.6 times the diameter of the other, shown side by side as photographed. The Open/close slider nests the small bowl inside the large one, the way they are stacked for sterilizing. Sizes come from the photo ratio and a typical solution-bowl listing.' },
     dims: 'Large about 14.3 cm across × 6 cm deep (22 oz solution bowl, Salvin: 5⅝ × 2¹⁹⁄₃₂ in); small about 9 cm × 3.8 cm. Approximate.' });
 
@@ -2854,7 +2854,7 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
     const w = s => 2.4 + 2.8 * Math.exp(-Math.pow((s - bnd) / 0.07, 2)) + (s > bnd ? 1.4 * sm(bnd, bnd + 0.1, s) - 0.5 * sm(bnd + 0.2, 1, s) : 0);
     g.add(U.mesh(trough(p, w, s => 0.5 + 0.45 * sm(bnd, bnd + 0.15, s) - 0.15 * Math.exp(-Math.pow((s - bnd) / 0.05, 2)), 0.25, 1.9), steel, 'blade'));
     // keel (gusset) under the channel handle, from the blade back to the weight
-    const kp = [[-1.2, -0.45], [-1.65, -2.2], [-1.85, -3.6]]; for (let t = 0; t <= 1.001; t += 0.1) kp.push([-1.85 - 8.6 * t, -3.6 + 3.15 * Math.pow(t, 0.55)]);
+    const kp = [[-1.0, -0.4], [-0.95, -1.5], [-1.0, -2.2], [-1.22, -3.6]]; for (let t = 0; t <= 1.001; t += 0.1) kp.push([-1.22 - 9.2 * t, -3.6 + 3.15 * Math.pow(t, 0.55)]);
     g.add(U.mesh(U.extrude(new T.Shape(kp.map(q => new T.Vector2(q[0], q[1]))), 0.3, 0.06), steel, 'handle'));
     const wt = U.mesh(new T.SphereGeometry(1, 48, 32), steel, 'weight'); wt.scale.set(4.0, 2.7, 2.6); wt.position.set(-14.8, -1.3, 0); g.add(wt);
     g.add(U.mesh(U.tube([[-18.5, -0.9, 0], [-19.5, -0.75, 0], [-20.2, -1.05, 0], [-20.25, -1.7, 0], [-19.9, -2.0, 0]], 0.17, false, 60), steel, 'weight'));
@@ -3583,7 +3583,7 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
       back: { pos: [L / 2, 0, -30], tgt: [L / 2, 0, 0] },
       side: { pos: [L / 2, 30, 0.01], tgt: [L / 2, 0, 0] },
       oblique: { pos: [L / 2 + 7, 13, 22], tgt: [L / 2, 0, 0] },
-      tip: { pos: [L - 0.55, 2.5, 0.02], tgt: [L - 0.55, 0, 0] },
+      tip: { pos: [L - 0.55, Math.max(2.6, 0.16 * L), 0.02], tgt: [L - 0.55, 0, 0] }, // far enough to keep both tips in frame when open
       jawsOblique: { pos: [L + 1.6, 1.25, 1.5], tgt: [L - 0.3, 0, 0] },
       jawsInner: { pos: [L + 1.6, 1.25, -1.5], tgt: [L - 0.3, 0, 0] },
       grip: { pos: [gm + 1.8, 3.2, 6.2], tgt: [gm, 0, 0.3] },
@@ -3792,7 +3792,7 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
   const MODELS = ST3D.models, modelIds = () => Object.keys(MODELS).filter(k => MODELS[k].ready !== false);
   const modelOfRec = {}; Object.values(MODELS).forEach(m => (m.records || [m.recordId]).forEach(r => { modelOfRec[r] = m.id; }));
   const recOfModel = m => byId[MODELS[m].recordId];
-  const VIEWLABEL = { front: 'Front', back: 'Back', side: 'Edge-on', oblique: '3/4 view', jaws: 'Jaws close-up', jawsOblique: 'Jaws 3/4', jawsTop: 'Jaws from above', tip: 'Tip end-on', ratchet: 'Ratchet', box: 'Box lock', blades: 'Blades', screw: 'Pivot screw', rings: 'Rings', teeth: 'Teeth', jawsOpen: 'Jaws open' };
+  const VIEWLABEL = { front: 'Front', back: 'Back', side: 'Edge-on', oblique: '3/4 view', jaws: 'Jaws close-up', jawsOblique: 'Jaws 3/4', jawsTop: 'Jaws from above', tip: 'Tip end-on', ratchet: 'Ratchet', box: 'Box lock', blades: 'Blades', screw: 'Pivot screw', rings: 'Rings', teeth: 'Teeth', jawsOpen: 'Jaws open', jawsInner: 'Inner tip face', grip: 'Grip', joint: 'Joint' };
 
   // ---------- storage ----------
   const KEY = 'st3d.v1';

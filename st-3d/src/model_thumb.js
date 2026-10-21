@@ -200,7 +200,7 @@
       back: { pos: [L / 2, 0, -30], tgt: [L / 2, 0, 0] },
       side: { pos: [L / 2, 30, 0.01], tgt: [L / 2, 0, 0] },
       oblique: { pos: [L / 2 + 7, 13, 22], tgt: [L / 2, 0, 0] },
-      tip: { pos: [L - 0.55, 2.5, 0.02], tgt: [L - 0.55, 0, 0] },
+      tip: { pos: [L - 0.55, Math.max(2.6, 0.16 * L), 0.02], tgt: [L - 0.55, 0, 0] }, // far enough to keep both tips in frame when open
       jawsOblique: { pos: [L + 1.6, 1.25, 1.5], tgt: [L - 0.3, 0, 0] },
       jawsInner: { pos: [L + 1.6, 1.25, -1.5], tgt: [L - 0.3, 0, 0] },
       grip: { pos: [gm + 1.8, 3.2, 6.2], tgt: [gm, 0, 0.3] },
