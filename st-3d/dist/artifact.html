@@ -2703,7 +2703,7 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
       <div class="row"><button class="btn ok" data-act="know">Know it</button><button class="btn bad" data-act="again">Study again</button></div>
       <button class="btn sm" data-act="hide">Hide answer</button>`;
     return `<div class="selrow"><button class="btn sm" data-act="prev" aria-label="Previous model" ${ids.length < 2 ? 'disabled' : ''}>‹</button>
-        <label class="sr" for="sel">Model</label><select id="sel">${ids.map(i => `<option value="${i}" ${i === S.sel ? 'selected' : ''}>${revealed || i !== S.sel ? esc(recOfModel(i).name) : 'Model ' + (ids.indexOf(i) + 1) + ' (hidden name)'}</option>`).join('')}</select>
+        <label class="sr" for="sel">Model</label><select id="sel">${ids.map(i => `<option value="${i}" ${i === S.sel ? 'selected' : ''}>${revealed && i === S.sel ? esc(recOfModel(i).name) : 'Model ' + (ids.indexOf(i) + 1) + (i === S.sel ? ' (name hidden)' : '')}</option>`).join('')}</select>
         <button class="btn sm" data-act="next" aria-label="Next model" ${ids.length < 2 ? 'disabled' : ''}>›</button></div>
       ${body}
       <details class="status"><summary>About this 3D model</summary><p>${esc(m.status.note)}</p><p class="muted">${esc(m.dims || '')}</p></details>`;
@@ -2743,7 +2743,7 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
   }
 
   // ---------- Compare ----------
-  const PAIRS = [['allis', 'babcock'], ['kelly', 'crile'], ['mayo-curved', 'metz'], ['mayo-straight', 'mayo-curved']];
+  const PAIRS = [['allis', 'babcock'], ['kelly', 'crile'], ['mayo-curved', 'metz'], ['mayo-straight', 'mayo-curved'], ['yankauer', 'poole'], ['yankauer', 'frazier'], ['richardson', 'deaver'], ['senn', 'armynavy']];
   const pairModels = p => p.map(r => modelOfRec[r]);
   function viewCompare() {
     const avail = PAIRS.map((p, i) => ({ p, i, ok: pairModels(p).every(Boolean) }));
