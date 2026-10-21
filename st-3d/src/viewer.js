@@ -49,7 +49,7 @@
       const v = this.def.views[name]; if (!v) return;
       const pos = new T.Vector3(...v.pos), tgt = new T.Vector3(...v.tgt), off = pos.clone().sub(tgt);
       // overview presets: back the camera off until the whole instrument fits this viewport's width (portrait phones)
-      if (off.length() > 14 && this.model) {
+      if (['front', 'back', 'side', 'oblique'].includes(name) && this.model) {
         const half = Math.tan(T.MathUtils.degToRad(this.camera.fov / 2)), need = (this.model.size / 2) / (half * Math.min(1, this.camera.aspect)) * 1.08;
         if (need > off.length()) off.setLength(need);
       }

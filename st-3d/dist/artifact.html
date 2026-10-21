@@ -2660,7 +2660,7 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
   // ---------------- uterine sound: malleable probe, cm marks, flat fluted paddle handle ----------------
   function sound() {
     const g = new T.Group(), steel = U.steel(), dark = darkMat();
-    const path = [[-10.6, 0, 0], [-4, -0.25, 0], [3, -0.56, 0], [8.4, -0.82, 0], [9.3, -0.98, 0], [10.2, -1.28, 0], [11.2, -1.36, 0], [13.6, -1.18, 0], [16.4, -0.92, 0]];
+    const path = [[-10.6, 0, 0], [-4, -0.25, 0], [3, -0.56, 0], [8.4, -0.82, 0], [9.6, -1.06, 0], [10.6, -1.27, 0], [11.6, -1.31, 0], [13.6, -1.16, 0], [16.4, -0.92, 0]];
     const L = lenOf(path), shaft = U.mesh(rod(path, s => { const d = s * L, e = (1 - s) * L; return e < 0.2 ? 0.185 : 0.155 + 0.13 * (1 - sm(0, 0.9, d)) + 0.04 * sm(0.7, 0.2, e); }, 360, 20), steel, 'shaft');
     g.add(shaft);
     const olive = U.mesh(new T.SphereGeometry(0.2, 24, 16), steel, 'shaft'); olive.position.copy(shaft.geometry.userData.curve.getPointAt(1)); g.add(olive);
@@ -3735,7 +3735,7 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
       const v = this.def.views[name]; if (!v) return;
       const pos = new T.Vector3(...v.pos), tgt = new T.Vector3(...v.tgt), off = pos.clone().sub(tgt);
       // overview presets: back the camera off until the whole instrument fits this viewport's width (portrait phones)
-      if (off.length() > 14 && this.model) {
+      if (['front', 'back', 'side', 'oblique'].includes(name) && this.model) {
         const half = Math.tan(T.MathUtils.degToRad(this.camera.fov / 2)), need = (this.model.size / 2) / (half * Math.min(1, this.camera.aspect)) * 1.08;
         if (need > off.length()) off.setLength(need);
       }
@@ -3792,7 +3792,7 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
   const MODELS = ST3D.models, modelIds = () => Object.keys(MODELS).filter(k => MODELS[k].ready !== false);
   const modelOfRec = {}; Object.values(MODELS).forEach(m => (m.records || [m.recordId]).forEach(r => { modelOfRec[r] = m.id; }));
   const recOfModel = m => byId[MODELS[m].recordId];
-  const VIEWLABEL = { front: 'Front', back: 'Back', side: 'Edge-on', oblique: '3/4 view', jaws: 'Jaws close-up', jawsOblique: 'Jaws 3/4', jawsTop: 'Jaws from above', tip: 'Tip end-on', ratchet: 'Ratchet', box: 'Box lock', blades: 'Blades', screw: 'Pivot screw', rings: 'Rings', teeth: 'Teeth', jawsOpen: 'Jaws open', jawsInner: 'Inner tip face', grip: 'Grip', joint: 'Joint' };
+  const VIEWLABEL = { marks: 'Depth marks', collars: 'Stop collars', thumbscrew: 'Thumb screw', handle: 'Handle', front: 'Front', back: 'Back', side: 'Edge-on', oblique: '3/4 view', jaws: 'Jaws close-up', jawsOblique: 'Jaws 3/4', jawsTop: 'Jaws from above', tip: 'Tip end-on', ratchet: 'Ratchet', box: 'Box lock', blades: 'Blades', screw: 'Pivot screw', rings: 'Rings', teeth: 'Teeth', jawsOpen: 'Jaws open', jawsInner: 'Inner tip face', grip: 'Grip', joint: 'Joint', loop: 'Loop', cup: 'Cup', markings: 'Depth marks', weight: 'Weight', set: 'Full set', nested: 'Nested' };
 
   // ---------- storage ----------
   const KEY = 'st3d.v1';
