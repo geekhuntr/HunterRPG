@@ -53,7 +53,7 @@
       for (const [sx, sy, ca, sa] of prof) { const u = sx * (hw - r) + r * ca, v = sy * (b - r) + r * sa; pos.push(P[i].x + nx * u, P[i].y + ny * u, z0 + v); }
     }
     for (let i = 0; i < n; i++) for (let j = 0; j < m; j++) { const a = i * m + j, b2 = i * m + ((j + 1) % m), c = (i + 1) * m + j, d = (i + 1) * m + ((j + 1) % m); idx.push(a, b2, c, b2, d, c); }
-    for (const end of [0, n]) { const ci = pos.length / 3; let cx = 0, cy = 0, cz = 0; for (let j = 0; j < m; j++) { cx += pos[(end * m + j) * 3]; cy += pos[(end * m + j) * 3 + 1]; cz += pos[(end * m + j) * 3 + 2]; } pos.push(cx / m, cy / m, cz / m); for (let j = 0; j < m; j++) { const a = end * m + j, b2 = end * m + ((j + 1) % m); end ? idx.push(ci, b2, a) : idx.push(ci, a, b2); } }
+    for (const end of [0, n]) { const ci = pos.length / 3; let cx = 0, cy = 0, cz = 0; for (let j = 0; j < m; j++) { cx += pos[(end * m + j) * 3]; cy += pos[(end * m + j) * 3 + 1]; cz += pos[(end * m + j) * 3 + 2]; } pos.push(cx / m, cy / m, cz / m); for (let j = 0; j < m; j++) { const a = end * m + j, b2 = end * m + ((j + 1) % m); end ? idx.push(ci, a, b2) : idx.push(ci, b2, a); } }
     const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals(); return g;
   };
   // Round wire/rail along a 3D path (Babcock jaw loops, Allis tips, etc.)

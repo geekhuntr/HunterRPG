@@ -90,7 +90,8 @@
     th: x => 0.30,
     ratchet: { x0: -12.75, x1: -11.35 },
     extras(g, c) {
-      g.add(U.mesh(U.plateXZ(U.ringShape(SP.cx, 0, SP.rx, SP.rz, SP.w), SP.t, -SP.f - SP.t / 2, 0.03), c.steel, 'jaws'));
+      const oval = new T.Shape(U.ellipsePts(SP.cx, 0, SP.rx, SP.rz, 180)); oval.holes.push(new T.Path(U.ellipsePts(SP.cx, 0, SP.rx - SP.w, SP.rz - 0.95 * SP.w, 160).reverse()));
+      g.add(U.mesh(U.plateXZ(oval, SP.t, -SP.f - SP.t / 2, 0.03), c.steel, 'jaws'));
       g.add(U.mesh(ridges(c.isB ? 0.5 : 0), U.steel({ roughness: 0.33 }), 'serrations'));
     }
   });

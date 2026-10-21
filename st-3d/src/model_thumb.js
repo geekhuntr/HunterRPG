@@ -91,7 +91,7 @@
     const L = o.L, hwS = mono(o.hw), R = 0.035;
     const hwX = x => hwS(x / L);
     const thB = x => o.th[0] + (o.th[1] - o.th[0]) * U.smooth(0.4 * L, 0.92 * L, x);
-    const thX = o.tip === 'teeth' ? thB : x => thB(x) * (1 - 0.3 * U.smooth(L - 0.12, L, x));
+    const thX = o.tip === 'teeth' ? thB : x => thB(x) * (1 - 0.15 * U.smooth(L - 0.12, L, x));
     const h = o.tip === 'teeth' && !o.serr ? 0.01 : 0.014; // inner face height above z = 0 at the closed tip
     const xp = o.J - 0.05, xm = o.peak * L, xe = L - o.P;
     const gapX = x => x <= xp ? 0 : x < xm ? o.gap * Math.sin(Math.PI / 2 * (x - xp) / (xm - xp)) : x < xe ? o.gap * 0.5 * (1 + Math.cos(Math.PI * (x - xm) / (xe - xm))) : 0;
@@ -102,7 +102,7 @@
     const rTip = hwX(L);
     const hwT = x => { // rounded tip in face view for the untoothed tips
       if (a || x < L - rTip) return hwX(x);
-      const u = (x - (L - rTip)) / rTip; return Math.max(R + 0.003, hwX(x) * Math.sqrt(Math.max(0, 1 - u * u)));
+      const u = (x - (L - rTip)) / rTip; return Math.max(R + 0.003, hwX(x) * (0.5 + 0.5 * Math.sqrt(Math.max(0, 1 - u * u))));
     };
 
     function blade(isB) {
@@ -112,6 +112,10 @@
       g.add(U.mesh(splitBar(bar.side, x => x < xe), steel, 'blades'));
       g.add(U.mesh(splitBar(bar.side, x => x >= xe), steel, 'tips'));
       g.add(U.mesh(bar.caps, steel, 'tips'));
+      if (!a) { // close the rounded tip with a small ellipsoid so the end reads as a smooth bead, not a flat cut
+        const e = new T.SphereGeometry(1, 24, 16); e.scale(Math.min(0.06, hwT(L) * 0.75), hwT(L), thX(L) / 2); e.translate(L - 0.002, 0, zc(L));
+        g.add(U.mesh(e, steel, 'tips'));
+      }
       // transverse grip ribs on the outer face
       const rib = new Acc(), x0 = o.grip[0] * L, x1 = o.grip[1] * L, pitch = 0.11, w = 0.062, hgt = 0.02;
       for (let x = x0; x <= x1; x += pitch) {
