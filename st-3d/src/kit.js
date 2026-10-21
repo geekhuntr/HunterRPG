@@ -56,6 +56,10 @@
     for (const end of [0, n]) { const ci = pos.length / 3; let cx = 0, cy = 0, cz = 0; for (let j = 0; j < m; j++) { cx += pos[(end * m + j) * 3]; cy += pos[(end * m + j) * 3 + 1]; cz += pos[(end * m + j) * 3 + 2]; } pos.push(cx / m, cy / m, cz / m); for (let j = 0; j < m; j++) { const a = end * m + j, b2 = end * m + ((j + 1) % m); end ? idx.push(ci, a, b2) : idx.push(ci, b2, a); } }
     const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals(); return g;
   };
+  // Round wire/rail along a 3D path (Babcock jaw loops, Allis tips, etc.)
+  U.tube = (pts3, r, closed = false, n = 160) => new T.TubeGeometry(new T.CatmullRomCurve3(pts3.map(p => new T.Vector3(...p)), closed, 'centripetal', 0.5), n, r, 12, closed);
+  // Flat plate whose outline is drawn in the X-Z plane (width across the instrument's thickness), thickness along Y, centered at y = yc.
+  U.plateXZ = (shape, thick, yc, bevel = 0.03) => { const g = U.extrude(shape, thick, bevel); g.rotateX(Math.PI / 2); g.translate(0, yc, 0); return g; };
   U.mesh = (geo, mat, part) => { const m = new T.Mesh(geo, mat.clone()); m.userData.part = part; m.userData.base = m.material.color.getHex(); return m; };
   U.roundRect = (x, y, w, h, r) => { const s = new T.Shape(); s.moveTo(x + r, y); s.lineTo(x + w - r, y); s.quadraticCurveTo(x + w, y, x + w, y + r); s.lineTo(x + w, y + h - r); s.quadraticCurveTo(x + w, y + h, x + w - r, y + h); s.lineTo(x + r, y + h); s.quadraticCurveTo(x, y + h, x, y + h - r); s.lineTo(x, y + r); s.quadraticCurveTo(x, y, x + r, y); return s; };
   // closed smooth outline from control points
