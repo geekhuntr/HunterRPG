@@ -65,11 +65,11 @@
     // tip head: spade widening to ~5.6 mm, inner face just behind the teeth, small window behind the tooth row
     const head = U.spline([[HX0, 0.0], [HX0 + 0.01, 0.15], [5.13, 0.2], [5.29, 0.272], [HX1 - 0.012, 0.272], [HX1, 0.24], [HX1, -0.24],
       [HX1 - 0.012, -0.272], [5.29, -0.272], [5.13, -0.2], [HX0 + 0.01, -0.15]], 120);
-    head.holes.push(new T.Path(U.spline([[4.99, 0], [5.04, 0.07], [5.17, 0.14], [5.22, 0.12], [5.22, -0.12], [5.17, -0.14], [5.04, -0.07]], 60).getPoints().reverse()));
+    head.holes.push(new T.Path(U.spline([[5.1, 0], [5.13, 0.06], [5.2, 0.125], [5.245, 0.105], [5.245, -0.105], [5.2, -0.125], [5.13, -0.06]], 60).getPoints().reverse()));
     g.add(U.mesh(U.plateXZ(head, HEAD_T, FACE - HEAD_T / 2, 0.025), steel, 'jaws'));
     // interlocking teeth: 4 on half A, 5 on half B (offset half a pitch so they mesh)
     const c = isB ? [-2, -1, 0, 1, 2].map(i => i * PITCH) : [-1.5, -0.5, 0.5, 1.5].map(i => i * PITCH);
-    const tm = U.mesh(teeth(c), U.steel({ roughness: 0.32 }), 'teeth'); tm.geometry.computeVertexNormals(); g.add(tm);
+    const tm = U.mesh(teeth(c, isB ? 0 : EDGE), U.steel({ roughness: 0.32 }), 'teeth'); tm.geometry.computeVertexNormals(); g.add(tm);
     if (isB) { // box lock and domed rivets
       g.add(U.mesh(U.extrude(U.roundRect(-0.55, -0.38, 1.1, 0.76, 0.12), 0.55, 0.06), steel, 'box'));
       for (const s of [1, -1]) { const d = new T.Mesh(new T.SphereGeometry(0.12, 20, 10), steel.clone()); d.scale.z = 0.35; d.position.z = s * 0.275; d.userData.part = 'box'; g.add(d); }
@@ -101,7 +101,7 @@
       ratchet: { pos: [-6.6, 2.0, 5.5], tgt: [-6.6, 0.1, 0] },
       box: { pos: [0.6, 2.0, 5.5], tgt: [0, 0, 0] }
     },
-    status: { state: 'complete-v1', note: 'Procedural educational model, not a scan. Length (15.5 cm) and the 4x5 interlocking teeth come from catalog listings; that the tips alone meet and the blades become triangular at the tips comes from museum catalogue descriptions. Approximated: tip width (~5.6 mm), tooth height and pitch (one row of 4 vs 5 sharp prisms; real teeth are finer), window size, the narrow space between the jaws, ring, ratchet and box-lock sizes. Not compared against a photograph because photo hosts are blocked in the build environment. A long Allis (~19-25 cm) has the same jaws on longer shanks.' },
+    status: { state: 'complete-v1', reviewed: true, note: 'Procedural educational model, not a scan. Length (15.5 cm) and the 4x5 interlocking teeth come from catalog listings; that the tips alone meet and the blades become triangular at the tips comes from museum catalogue descriptions. Approximated: tip width (~5.6 mm), tooth height and pitch (one row of 4 vs 5 sharp prisms carried edge to edge, the 4-tooth jaw ending in half-tooth flanks; real teeth are finer), window size, the narrow space between the jaws, ring, ratchet and box-lock sizes. Not compared against a photograph because photo hosts are blocked in the build environment. A long Allis (~19-25 cm) has the same jaws on longer shanks.' },
     dims: 'About 15.5 cm (6 in) overall; tips ~5.6 mm wide with 4x5 interlocking teeth. Long Allis versions (~19-25 cm) share the same jaws.'
   };
 })(window);

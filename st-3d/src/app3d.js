@@ -20,8 +20,9 @@
 
   // ---------- storage ----------
   const KEY = 'st3d.v1';
-  let S = { theme: 'system', prog: {}, sel: modelIds()[0] || 'babcock', tray: 'All', seen: {} };
+  let S = { theme: 'system', prog: {}, sel: MODELS.babcock ? 'babcock' : modelIds()[0], tray: 'All', seen: {} };
   try { S = Object.assign(S, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) { /* memory only */ }
+  if (!MODELS[S.sel]) S.sel = MODELS.babcock ? 'babcock' : modelIds()[0];
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* ignore */ } };
   const applyTheme = () => { const r = document.documentElement; if (S.theme === 'system') r.removeAttribute('data-theme'); else r.setAttribute('data-theme', S.theme); };
 
