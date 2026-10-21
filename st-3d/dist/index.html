@@ -3919,7 +3919,7 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
   }
 
   // ---------- Inventory ----------
-  const stateOf = r => { const m = modelOfRec[r.id]; return m ? (MODELS[m].status.reviewed ? { k: 'ready', t: '3D model ready', n: MODELS[m].status.note } : { k: 'ready', t: '3D model (review pending)', n: MODELS[m].status.note }) : { k: 'none', t: 'No 3D model yet', n: 'Text details only for now.' }; };
+  const stateOf = r => { const m = modelOfRec[r.id]; return m ? (MODELS[m].status.reviewed ? { k: 'ready', t: '3D model ready', n: MODELS[m].status.note } : { k: 'ready', t: '3D model (review pending)', n: MODELS[m].status.note }) : (r.quiz === false && (r.flags || []).some(f => f === 'f_nurse' || f === 'f_babyblunt') ? { k: 'none', t: 'Not modeled: instrument type unconfirmed', n: 'Your list uses a generic name that does not identify one specific instrument pattern, so no model was built. Confirm the exact instrument with your instructor and it can be modeled.' } : { k: 'none', t: 'No 3D model yet', n: 'Text details only for now.' }); };
   function viewInventory() {
     const list = RECORDS.filter(r => invTray === 'All' || r.trays.includes(invTray)).sort((a, b) => (modelOfRec[b.id] ? 1 : 0) - (modelOfRec[a.id] ? 1 : 0) || a.name.localeCompare(b.name));
     const per = TRAYS.map(t => { const rs = RECORDS.filter(r => r.trays.includes(t)); return `<span class="chip">${t}: <b>${rs.filter(r => modelOfRec[r.id]).length}</b> of ${rs.length} instruments modeled</span>`; }).join('');
