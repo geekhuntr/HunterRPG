@@ -1829,12 +1829,12 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
   // Swept flat bar with a rounded-rectangle section along a 2D centerline; zFn(x) lifts it in Z (joggle). Smooth normals, closed ends.
   U.bar = (pts, hwFn, th, zFn, n = 140, r = 0.06) => {
     const curve = new T.CatmullRomCurve3(pts.map(p => new T.Vector3(p[0], p[1], 0)), false, 'centripetal'), P = curve.getSpacedPoints(n);
-    const arc = 4, prof = [], b = th / 2;
+    const arc = 4, prof = [], thF = typeof th === 'function' ? th : () => th;
     const corners = [[1, 1, 0], [-1, 1, 1], [-1, -1, 2], [1, -1, 3]];
     for (const [sx, sy, k] of corners) for (let j = 0; j <= arc; j++) { const a = (k * Math.PI) / 2 + (j / arc) * (Math.PI / 2); prof.push([sx, sy, Math.cos(a), Math.sin(a)]); }
     const pos = [], idx = [], m = prof.length;
     for (let i = 0; i <= n; i++) {
-      const a = P[Math.max(0, i - 1)], c = P[Math.min(n, i + 1)], tx = c.x - a.x, ty = c.y - a.y, l = Math.hypot(tx, ty) || 1, nx = -ty / l, ny = tx / l, hw = hwFn(i / n), z0 = zFn(P[i].x);
+      const a = P[Math.max(0, i - 1)], c = P[Math.min(n, i + 1)], tx = c.x - a.x, ty = c.y - a.y, l = Math.hypot(tx, ty) || 1, nx = -ty / l, ny = tx / l, hw = hwFn(i / n), z0 = zFn(P[i].x), b = thF(i / n) / 2;
       for (const [sx, sy, ca, sa] of prof) { const u = sx * (hw - r) + r * ca, v = sy * (b - r) + r * sa; pos.push(P[i].x + nx * u, P[i].y + ny * u, z0 + v); }
     }
     for (let i = 0; i < n; i++) for (let j = 0; j < m; j++) { const a = i * m + j, b2 = i * m + ((j + 1) % m), c = (i + 1) * m + j, d = (i + 1) * m + ((j + 1) % m); idx.push(a, c, b2, b2, c, d); }
@@ -1845,11 +1845,247 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
   U.tube = (pts3, r, closed = false, n = 160) => new T.TubeGeometry(new T.CatmullRomCurve3(pts3.map(p => new T.Vector3(...p)), closed, 'centripetal', 0.5), n, r, 12, closed);
   // Flat plate whose outline is drawn in the X-Z plane (width across the instrument's thickness), thickness along Y, centered at y = yc.
   U.plateXZ = (shape, thick, yc, bevel = 0.03) => { const g = U.extrude(shape, thick, bevel); g.rotateX(Math.PI / 2); g.translate(0, yc, 0); return g; };
+  // Round tube along a 3D path with a radius that varies along its length (suction tips, cannulas, handles); closed ends.
+  U.sweep = (pts3, rFn, n = 160, radial = 24) => {
+    const curve = new T.CatmullRomCurve3(pts3.map(p => new T.Vector3(...p)), false, 'centripetal', 0.5), fr = curve.computeFrenetFrames(n, false);
+    const pos = [], idx = [];
+    for (let i = 0; i <= n; i++) { const P = curve.getPointAt(i / n), r = rFn(i / n), N = fr.normals[i], B = fr.binormals[i];
+      for (let j = 0; j < radial; j++) { const a = (j / radial) * Math.PI * 2, c = Math.cos(a), s2 = Math.sin(a); pos.push(P.x + r * (c * N.x + s2 * B.x), P.y + r * (c * N.y + s2 * B.y), P.z + r * (c * N.z + s2 * B.z)); } }
+    for (let i = 0; i < n; i++) for (let j = 0; j < radial; j++) { const a = i * radial + j, b = i * radial + ((j + 1) % radial), c = (i + 1) * radial + j, d = (i + 1) * radial + ((j + 1) % radial); idx.push(a, b, c, b, d, c); }
+    for (const end of [0, n]) { const P = curve.getPointAt(end / n), ci = pos.length / 3; pos.push(P.x, P.y, P.z); for (let j = 0; j < radial; j++) { const a = end * radial + j, b = end * radial + ((j + 1) % radial); end ? idx.push(ci, a, b) : idx.push(ci, b, a); } }
+    const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals(); g.userData.curve = curve; return g;
+  };
+  // A dark recess on a surface (suction ports). Shown as a shallow dark disc, not a true cut-through hole.
+  U.port = (r, at, normal) => { const m = new T.Mesh(new T.CylinderGeometry(r, r, 0.02, 24), new T.MeshStandardMaterial({ color: 0x07090b, roughness: 0.9, metalness: 0 })); m.position.set(...at); m.quaternion.setFromUnitVectors(new T.Vector3(0, 1, 0), new T.Vector3(...normal).normalize()); m.userData.part = 'ports'; m.userData.port = true; return m; };
   U.mesh = (geo, mat, part) => { const m = new T.Mesh(geo, mat.clone()); m.userData.part = part; m.userData.base = m.material.color.getHex(); return m; };
   U.roundRect = (x, y, w, h, r) => { const s = new T.Shape(); s.moveTo(x + r, y); s.lineTo(x + w - r, y); s.quadraticCurveTo(x + w, y, x + w, y + r); s.lineTo(x + w, y + h - r); s.quadraticCurveTo(x + w, y + h, x + w - r, y + h); s.lineTo(x + r, y + h); s.quadraticCurveTo(x, y + h, x, y + h - r); s.lineTo(x, y + r); s.quadraticCurveTo(x, y, x + r, y); return s; };
   // closed smooth outline from control points
   U.spline = (pts, n = 90) => new T.Shape(new T.CatmullRomCurve3(pts.map(p => new T.Vector3(p[0], p[1], 0)), true, 'centripetal').getSpacedPoints(n).slice(0, -1).map(p => V2(p.x, p.y)));
   U.sawtooth = (x, x0, x1, pitch, amp) => { if (x < x0 || x > x1) return 0; const u = ((x - x0) / pitch) % 1; return amp * u; };
+})(window);
+
+</script>
+<script>
+/* Shared factory for operating scissors (Mayo straight / Mayo curved / Metzenbaum). PROCEDURAL EDUCATIONAL MODELS, not scans.
+   Named model_a_* so it loads before model_mayo.js / model_metz.js (files load alphabetically). Registers no model itself.
+   Anatomy: each half = finger ring + shank + round hub at the pivot + blade. The two halves lie in two layers
+   (half A in z > 0, half B in z < 0) that slide past each other on their flat inner (shearing) faces; a slotted pivot screw
+   at the origin joins them. No ratchet, no box lock. Blade section: flat inner face, a bevel ground on the outer face toward
+   the cutting edge, a rounded back. Curved patterns: both blades bend toward +Y within the blade plane (visible face-on).
+   Half B is built and then mirrored (scale.y = -1), so its curve is built inverted to end up on the same side as half A's. */
+(function (root) {
+  const T = root.THREE, ST3D = root.ST3D, U = ST3D.kit;
+  const GAP = 0.004; // clearance between the two shearing faces (avoids coplanar z-fighting)
+
+  // Swept blade with a crisp-edged section. o: { L, w0, w1, t0, t1, curve, x0 } ; zs = +1 (half A layer) or -1 (half B layer); cs = curve sign.
+  function bladeGeo(o, zs, cs) {
+    const n = 140, xs = -0.05, L = o.L;
+    const yc = x => cs * o.curve * Math.pow(Math.max(0, (x - o.x0) / (L - o.x0)), 2);
+    const taper = x => { const s = Math.max(0, x) / L; return o.w0 / 2 + (o.w1 / 2 - o.w0 / 2) * U.smooth(0, 1, Math.min(1, s * 1.05)); };
+    const rt = taper(L) * 1.15, xr = L - rt; // rounded (blunt) tip: elliptical closure over the last rt cm
+    const hwAt = x => (x <= xr ? taper(x) : taper(x) * Math.sqrt(Math.max(0, 1 - Math.pow((x - xr) / rt, 2))));
+    const thAt = x => { const s = Math.max(0, x) / L; return o.t0 + (o.t1 - o.t0) * s; };
+    // stations: denser toward the tip
+    const X = []; for (let i = 0; i <= n; i++) { const u = i / n; X.push(xs + (L - xs) * Math.sin(u * Math.PI / 2)); }
+    // section faces as polylines in (u across the blade: + = cutting edge side, v = height above the shearing face); CCW loop
+    const faces = hw => {
+      const t = thAt(hw.x), w = Math.max(hw.h, 0.0005), e = Math.min(0.025, t * 0.3), bw = w * 0.5, r = Math.min(t * 0.45, w * 0.35);
+      const back = [[w - bw, t], [-w + r, t]];
+      for (let j = 1; j <= 5; j++) { const a = Math.PI / 2 + (j / 5) * (Math.PI / 2); back.push([-w + r + r * Math.cos(a), t - r + r * Math.sin(a)]); }
+      back.push([-w, 0]);
+      return [[[-w, 0], [w, 0]], [[w, 0], [w, e]], [[w, e], [w - bw, t]], back];
+    };
+    const pos = [], idx = [];
+    const P = X.map(x => [x, yc(x)]);
+    const secs = X.map(x => faces({ x, h: hwAt(x) }));
+    const nf = secs[0].length;
+    for (let f = 0; f < nf; f++) {
+      const m = secs[0][f].length, base = pos.length / 3;
+      for (let i = 0; i <= n; i++) {
+        const a = P[Math.max(0, i - 1)], c = P[Math.min(n, i + 1)], tx = c[0] - a[0], ty = c[1] - a[1], l = Math.hypot(tx, ty) || 1, nx = -ty / l, ny = tx / l;
+        for (const [u, v] of secs[i][f]) pos.push(P[i][0] + nx * u, P[i][1] + ny * u, zs * (GAP + v));
+      }
+      for (let i = 0; i < n; i++) for (let j = 0; j < m - 1; j++) {
+        const a = base + i * m + j, b = a + 1, c = a + m, d = c + 1;
+        if (zs > 0) idx.push(a, b, c, b, d, c); else idx.push(a, c, b, b, c, d);
+      }
+    }
+    const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+    return g;
+  }
+
+  // Slotted screw head (two D-shaped halves over a thin base disc), axis along Z, sitting on z = z0 and rising toward +Z.
+  function screwHead(R, H, slot, z0, ang) {
+    const a0 = Math.acos(slot / R), sh = new T.Shape();
+    sh.moveTo(slot, -R * Math.sin(a0)); sh.absarc(0, 0, R, -a0, a0, false); sh.lineTo(slot, -R * Math.sin(a0));
+    const parts = [];
+    for (const rot of [0, Math.PI]) { const g = U.extrude(sh, H, 0.018); g.rotateZ(rot + ang); g.translate(0, 0, z0 + H / 2); parts.push(g); }
+    const base = U.extrude(new T.Shape(U.ellipsePts(0, 0, R * 0.995, R * 0.995, 48)), H * 0.35, 0.01); base.translate(0, 0, z0 + H * 0.175); parts.push(base);
+    return parts;
+  }
+
+  ST3D.scissors = function (o) {
+    const RING = o.ring, LAYER = GAP + o.tH / 2; // z centre of each half's hub / blade-root layer
+    function half(zs, isB) {
+      const g = new T.Group(), steel = U.steel();
+      const k = isB ? (o.ringScaleB || 1) : 1, rx = RING.rx * k, ry = RING.ry * k;
+      const cx = RING.cx - (rx - RING.rx), cy = RING.cy + (ry - RING.ry) * 0.6;
+      // finger ring, nearly in the common mid-plane (offset ±zr) so both rings look coplanar edge-on
+      const ring = U.extrude(U.ringShape(cx, cy, rx, ry, RING.wall), RING.t, 0.06); ring.translate(0, 0, zs * o.zr);
+      g.add(U.mesh(ring, steel, 'rings'));
+      // shank: leaves the distal-inner side of the ring, converges on the pivot; joggles from the ring plane into its own layer
+      const aa = -0.62, mw = RING.wall / 2;
+      const p0 = [cx + (rx - mw) * Math.cos(aa), cy + (ry - mw) * Math.sin(aa)];
+      const cl = [p0, ...o.shankPts, [0.0, 0.0]];
+      const jog = x => zs * (o.zr + (LAYER - o.zr) * U.smooth(o.jog[0], o.jog[1], x));
+      const hw = s => o.shankHW[0] + (o.shankHW[1] - o.shankHW[0]) * s + (o.hubR * 0.75 - o.shankHW[1]) * U.smooth(0.9, 1, s);
+      const thick = Math.min(RING.t, o.tH);
+      g.add(U.mesh(U.bar(cl, hw, thick, jog, 200, Math.min(0.08, thick * 0.3)), steel, 'shanks'));
+      // hub: round boss around the screw, full layer thickness
+      const hub = U.extrude(new T.Shape(U.ellipsePts(0, 0, o.hubR, o.hubR, 64)), o.tH, 0.04); hub.translate(0, 0, zs * LAYER);
+      g.add(U.mesh(hub, steel, 'blades'));
+      // blade (curve sign inverted on B because the whole half is mirrored in Y afterwards)
+      g.add(U.mesh(bladeGeo(o.blade, zs, isB ? -1 : 1), steel, 'blades'));
+      const zOut = GAP + o.tH;
+      if (!isB) { for (const geo of screwHead(o.screwR, o.screwH, o.screwR * 0.11, zOut - 0.004, 0.5)) g.add(U.mesh(geo, steel, 'screw')); }
+      else { // flush threaded end / nut face on the other side
+        const nut = U.extrude(new T.Shape(U.ellipsePts(0, 0, o.screwR * 0.82, o.screwR * 0.82, 48)), 0.06, 0.02); nut.translate(0, 0, -(zOut + 0.026));
+        g.add(U.mesh(nut, steel, 'screw'));
+      }
+      return g;
+    }
+    function build() {
+      const grp = new T.Group(), A = new T.Group(), Bp = new T.Group(), Bm = new T.Group();
+      A.add(half(+1, false)); Bm.add(half(-1, true)); Bm.scale.y = -1; Bp.add(Bm); grp.add(A, Bp);
+      const open = k => { const th = k * (o.maxOpen || 0.3); A.rotation.z = -th; Bp.rotation.z = th; };
+      open(0);
+      return { group: grp, setOpen: open, center: new T.Vector3(o.cx, 0, 0), size: o.size };
+    }
+    const L = o.blade.L, bc = L * 0.5, cyB = o.blade.curve * 0.3, cx = o.cx, d = o.closeDist || 9;
+    return {
+      id: o.id, recordId: o.recordId, build, hasArticulation: true,
+      parts: [['rings', 'Finger rings'], ['shanks', 'Shanks'], ['screw', 'Pivot screw'], ['blades', 'Blades']],
+      partViews: { rings: 'front', shanks: 'oblique', screw: 'screw', blades: 'blades' },
+      views: {
+        front: { pos: [cx, 0, 30], tgt: [cx, 0, 0] },
+        back: { pos: [cx, 0, -30], tgt: [cx, 0, 0] },
+        side: { pos: [cx, 28, 0.01], tgt: [cx, 0, 0] },
+        oblique: { pos: [cx + 9, 10, 22], tgt: [cx, 0, 0] },
+        blades: { pos: [bc, cyB, d], tgt: [bc, cyB, 0] },
+        jawsOblique: { pos: [bc + d * 0.55, cyB + d * 0.45, d * 0.62], tgt: [bc, cyB, 0] },
+        tip: { pos: [L + 2.6, o.blade.curve + 1.6, 3.2], tgt: [L - 0.7, o.blade.curve * 0.8, 0] },
+        screw: { pos: [0.9, 1.3, 4.6], tgt: [0, 0, 0] }
+      },
+      status: { state: 'complete-v1', note: o.note },
+      dims: o.dims
+    };
+  };
+})(window);
+
+</script>
+<script>
+/* Allis tissue forceps, standard 15.5 cm (6 in). PROCEDURAL EDUCATIONAL MODEL, not a scan.
+   Identifying geometry (what separates it from the Babcock):
+   - Seen face-on (ring plane), slender jaws leave a narrow lens-shaped space behind the tips; only the tips meet.
+   - Each jaw ends in a short head bent in toward its partner that widens to a ~5.6 mm spade with a small window
+     (fenestration) just behind the grasping edge.
+   - The grasping edges carry sharp INTERLOCKING teeth: 4 on one jaw, 5 on the other ("4x5"), which mesh when closed.
+     A Babcock instead has a smooth, wider (~9 mm) tip bar and wire-loop jaws that bow far apart.
+   - Flat finger rings, ratchet beside the rings, box lock, like the other ring-handled clamps.
+   Sourced: 15-15.5 cm length and 4x5 teeth (WPI 501324, Vet Spectrum SAH.752015, UNICEF S0738000, Spiggle & Theis
+   80-400-15 GUDID); tips meet only at the very end with small interlocking teeth; blades straight, becoming triangular
+   at the tips (museum catalogue records). Approximations: tip width, tooth size, window size, gap profile, ring/ratchet/box. */
+(function (root) {
+  const T = root.THREE, ST3D = root.ST3D, U = ST3D.kit;
+  const RING = { cx: -8.75, cy: 1.23, rx: 1.3, ry: 1.2, wall: 0.34 };
+  // tip head (half A, whose jaw lies at y < 0; its grasping face looks toward +y)
+  const FACE = -0.062, HEAD_T = 0.14, HX0 = 4.86, HX1 = 5.44, TX0 = 5.29, TX1 = 5.41;
+  const TB = 0.052, TH = 0.088, PITCH = 0.108; // tooth base plane (|y|), tooth height, pitch across the tip width
+
+  // shank centerline (ring -> box -> jaw); jaw part diverges slightly then turns in to the head
+  const CL = [[-7.95, 0.50], [-7.3, 0.42], [-6.0, 0.40], [-3.2, 0.30], [-1.0, 0.20], [0, 0], [0.7, -0.13], [1.5, -0.17],
+    [2.5, -0.215], [3.5, -0.245], [4.25, -0.24], [4.65, -0.205], [4.88, -0.155], [5.0, -0.125]];
+  const N = 260;
+  const clPts = new T.CatmullRomCurve3(CL.map(p => new T.Vector3(p[0], p[1], 0)), false, 'centripetal').getSpacedPoints(N);
+  const xAt = s => clPts[Math.round(s * N)].x;
+  const hw = s => { const x = xAt(s); // in-plane half-width: handle shank, slimmer jaw, slight taper into the head
+    return x < 0.3 ? 0.27 - 0.08 * U.smooth(-3.2, 0.3, x) : 0.19 - 0.09 * U.smooth(0.3, 1.6, x) - 0.035 * U.smooth(4.3, 4.95, x); };
+
+  // row of triangular-prism teeth across the tip width (z), pointing toward +y, extruded along x
+  function teeth(centers) {
+    const s = new T.Shape(), w = PITCH * 0.8, lo = -TB - 0.03;
+    const z0 = centers[0] - w / 2, z1 = centers[centers.length - 1] + w / 2;
+    s.moveTo(z0, lo);
+    for (const c of centers) { s.lineTo(c - w / 2, -TB); s.lineTo(c, -TB + TH); s.lineTo(c + w / 2, -TB); }
+    s.lineTo(z1, lo); s.lineTo(z0, lo);
+    const g = new T.ExtrudeGeometry(s, { depth: TX1 - TX0, bevelEnabled: false });
+    g.rotateY(Math.PI / 2); g.translate(TX0, 0, 0); // shape u -> -z (rows are symmetric), depth -> +x
+    return g.toNonIndexed();
+  }
+
+  function splitBar(geo, keep) {
+    const p = geo.attributes.position, idx = geo.index.array, out = [];
+    for (let i = 0; i < idx.length; i += 3) { const cx = (p.getX(idx[i]) + p.getX(idx[i + 1]) + p.getX(idx[i + 2])) / 3; if (keep(cx)) out.push(idx[i], idx[i + 1], idx[i + 2]); }
+    const g = new T.BufferGeometry(); g.setAttribute('position', p); g.setAttribute('normal', geo.attributes.normal); g.setIndex(out); return g;
+  }
+
+  function half(zs, isB) {
+    const g = new T.Group(), steel = U.steel();
+    g.add(U.mesh(U.extrude(U.ringShape(RING.cx, RING.cy, RING.rx, RING.ry, RING.wall), 0.30, 0.05), steel, 'rings'));
+    // shank + jaw in one swept bar; z-joggle hidden inside the box lock
+    const jog = x => zs * 0.08 * U.smooth(-1.0, -0.6, x) * (1 - U.smooth(0.6, 1.0, x));
+    const bar = U.bar(CL, hw, 0.28, jog, N, 0.07);
+    // one sweep, two part tags: distal to the box lock it is the jaw (shared vertices keep the seam smooth)
+    for (const [part, keep] of [['shanks', x => x < 0.6], ['jaws', x => x >= 0.6]]) g.add(U.mesh(splitBar(bar, keep), steel, part));
+    // ratchet boss next to the ring (front half on A, back half on B), teeth on the overlapping edge
+    const x0 = -7.35, x1 = -5.95, pitch = 0.2, depth = 0.1;
+    const pts = [[x0, 0.30], [x1, 0.30], [x1, -0.02]];
+    for (let x = x1; x > x0 + 0.01; x -= pitch) { pts.push([x - pitch * 0.15, -0.02 - depth]); pts.push([x - pitch, -0.02]); }
+    pts.push([x0, 0.10]);
+    const boss = U.extrude(new T.Shape(pts.map(p => new T.Vector2(p[0], p[1]))), 0.15, 0.02); boss.translate(0, 0, zs * 0.075);
+    g.add(U.mesh(boss, steel, 'ratchet'));
+    // tip head: spade widening to ~5.6 mm, inner face just behind the teeth, small window behind the tooth row
+    const head = U.spline([[HX0, 0.0], [HX0 + 0.02, 0.16], [5.1, 0.2], [5.3, 0.275], [HX1 - 0.015, 0.27], [HX1, 0.15], [HX1, -0.15],
+      [HX1 - 0.015, -0.27], [5.3, -0.275], [5.1, -0.2], [HX0 + 0.02, -0.16]], 120);
+    head.holes.push(new T.Path(U.spline([[4.99, 0], [5.04, 0.07], [5.17, 0.14], [5.22, 0.12], [5.22, -0.12], [5.17, -0.14], [5.04, -0.07]], 60).getPoints().reverse()));
+    g.add(U.mesh(U.plateXZ(head, HEAD_T, FACE - HEAD_T / 2, 0.025), steel, 'jaws'));
+    // interlocking teeth: 4 on half A, 5 on half B (offset half a pitch so they mesh)
+    const c = isB ? [-2, -1, 0, 1, 2].map(i => i * PITCH) : [-1.5, -0.5, 0.5, 1.5].map(i => i * PITCH);
+    const tm = U.mesh(teeth(c), U.steel({ roughness: 0.32 }), 'teeth'); tm.geometry.computeVertexNormals(); g.add(tm);
+    if (isB) { // box lock and domed rivets
+      g.add(U.mesh(U.extrude(U.roundRect(-0.55, -0.38, 1.1, 0.76, 0.12), 0.55, 0.06), steel, 'box'));
+      for (const s of [1, -1]) { const d = new T.Mesh(new T.SphereGeometry(0.12, 20, 10), steel.clone()); d.scale.z = 0.35; d.position.z = s * 0.275; d.userData.part = 'box'; g.add(d); }
+    }
+    return g;
+  }
+
+  function build() {
+    const grp = new T.Group(), A = new T.Group(), Bp = new T.Group(), Bm = new T.Group();
+    A.add(half(+1, false)); Bm.add(half(-1, true)); Bm.scale.y = -1; Bp.add(Bm); grp.add(A, Bp);
+    const open = k => { const th = k * 0.2; A.rotation.z = -th; Bp.rotation.z = th; };
+    open(0);
+    return { group: grp, setOpen: open, center: new T.Vector3(-2.3, 0, 0), size: 15.5 };
+  }
+
+  ST3D.models.allis = {
+    id: 'allis', recordId: 'allis', build, hasArticulation: true,
+    parts: [['rings', 'Finger rings'], ['ratchet', 'Ratchet'], ['shanks', 'Shanks'], ['box', 'Box lock'], ['jaws', 'Jaw tips (fenestrated)'], ['teeth', 'Interlocking teeth']],
+    partViews: { rings: 'front', ratchet: 'ratchet', shanks: 'oblique', box: 'box', jaws: 'jawsTop', teeth: 'tip' },
+    views: {
+      front: { pos: [-2.3, 0, 30], tgt: [-2.3, 0, 0] },
+      back: { pos: [-2.3, 0, -30], tgt: [-2.3, 0, 0] },
+      side: { pos: [-2.3, 28, 0.01], tgt: [-2.3, 0, 0] },
+      oblique: { pos: [7, 10, 22], tgt: [-2.3, 0, 0] },
+      jaws: { pos: [3.6, 0, 7.0], tgt: [3.6, 0, 0] },
+      jawsTop: { pos: [5.0, 4.5, 0.4], tgt: [5.0, -0.1, 0] },
+      jawsOblique: { pos: [8.0, 2.0, 3.0], tgt: [4.95, 0, 0] },
+      tip: { pos: [8.4, 0.3, 0.0], tgt: [5.4, 0, 0] },
+      ratchet: { pos: [-6.6, 2.0, 5.5], tgt: [-6.6, 0.1, 0] },
+      box: { pos: [0.6, 2.0, 5.5], tgt: [0, 0, 0] }
+    },
+    status: { state: 'complete-v1', note: 'Procedural educational model, not a scan. Length (15.5 cm) and the 4x5 interlocking teeth come from catalog listings; that the tips alone meet and the blades become triangular at the tips comes from museum catalogue descriptions. Approximated: tip width (~5.6 mm), tooth height and pitch (one row of 4 vs 5 sharp prisms; real teeth are finer), window size, the narrow space between the jaws, ring, ratchet and box-lock sizes. Not compared against a photograph because photo hosts are blocked in the build environment. A long Allis (~19-25 cm) has the same jaws on longer shanks.' },
+    dims: 'About 15.5 cm (6 in) overall; tips ~5.6 mm wide with 4x5 interlocking teeth. Long Allis versions (~19-25 cm) share the same jaws.'
+  };
 })(window);
 
 </script>
@@ -1928,9 +2164,194 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
       ratchet: { pos: [-6.2, 2.0, 5.5], tgt: [-6.2, 0.1, 0] },
       box: { pos: [0.6, 2.0, 5.5], tgt: [0, 0, 0] }
     },
-    status: { state: 'complete-v2', note: 'Procedural educational model, not a scan. Version 2 after a visual-accuracy review: fenestrated triangular jaws perpendicular to the ring plane, bowed jaws that leave an oval grasping space, ratchet beside the rings, smaller box lock. Length and ~9 mm jaw width come from catalog listings; bow profile, ratchet and box-lock sizes are approximations. Not compared against a photograph because photo hosts are blocked in the build environment.' },
+    status: { state: 'complete-v2', reviewed: true, note: 'Procedural educational model, not a scan. Version 2 after a visual-accuracy review: fenestrated triangular jaws perpendicular to the ring plane, bowed jaws that leave an oval grasping space, ratchet beside the rings, smaller box lock. Length and ~9 mm jaw width come from catalog listings; bow profile, ratchet and box-lock sizes are approximations. Not compared against a photograph because photo hosts are blocked in the build environment.' },
     dims: 'About 16.5 cm (6½ in) overall, ~9 mm wide jaw tips.'
   };
+})(window);
+
+</script>
+<script>
+/* Mayo scissors, straight and curved, 17 cm (6 3/4 in) standard. PROCEDURAL EDUCATIONAL MODELS, not scans (factory: model_a_scissors.js).
+   Identifying geometry: heavy pattern. Blades SHORT, WIDE and THICK relative to the handles (pivot-to-tip about a third of the
+   overall length), semi-blunt rounded tips, beveled outer edges. Curved Mayo: blades bend to one side within the blade plane.
+   Sourced: 15-17 cm overall (Wikipedia "Mayo scissors"; WPI 501751 Mayo 17 cm "heavy, thick blades, semi-blunt tips";
+   Teleflex/Pilling 6 3/4 in), ~45 mm cutting edge on a 17 cm Mayo (Fine Science Tools listing via Fisher Scientific).
+   Approximations: blade width/thickness, curve depth, ring and hub sizes, shank path (instrument knowledge, not measured). */
+(function (root) {
+  const ST3D = root.ST3D;
+  const base = {
+    size: 17.0, cx: -2.9, zr: 0.05, tH: 0.30, hubR: 0.6, screwR: 0.36, screwH: 0.09, ringScaleB: 1.06,
+    ring: { cx: -10.1, cy: 1.35, rx: 1.3, ry: 1.1, wall: 0.3, t: 0.32 },
+    shankPts: [[-7.0, 0.66], [-4.5, 0.45], [-2.2, 0.22], [-0.9, 0.07]],
+    shankHW: [0.33, 0.3], jog: [-6.2, -3.8], closeDist: 10
+  };
+  const common = 'Procedural educational model, not a scan; not checked against a photograph because photo hosts are blocked in the build environment. Sourced: about 17 cm (6 3/4 in) overall and a cutting edge of roughly 4.5 cm on a 17 cm Mayo (catalog listings); heavy pattern with thick blades and semi-blunt tips. Approximated: blade width (~1.0 cm at the root, ~0.6 cm near the tip), blade thickness (~3 mm per blade), bevel shape, ring, hub and screw sizes, shank path. Each blade is one smooth plate; real blades are hollow-ground and the cutting edges are sharper.';
+  ST3D.models['mayo-straight'] = ST3D.scissors(Object.assign({}, base, {
+    id: 'mayo-straight', recordId: 'mayo-straight',
+    blade: { L: 5.6, w0: 1.0, w1: 0.62, t0: 0.30, t1: 0.2, curve: 0, x0: 0.6 },
+    note: 'Straight Mayo. ' + common,
+    dims: 'About 17 cm (6¾ in) overall; blades about 5.6 cm from screw to tip (about a third of the length), up to about 1 cm wide and 3 mm thick each, straight, semi-blunt tips. Widths, thickness and ring sizes are approximations.'
+  }));
+  ST3D.models['mayo-curved'] = ST3D.scissors(Object.assign({}, base, {
+    id: 'mayo-curved', recordId: 'mayo-curved',
+    blade: { L: 5.6, w0: 1.0, w1: 0.62, t0: 0.30, t1: 0.2, curve: 0.85, x0: 0.6 },
+    note: 'Curved Mayo, modeled at the 17 cm standard size (the trays also list 7 in and 10 in; the pattern is the same, only longer). Both blades bend about 8-9 mm to the same side over their length (approximated curve depth). ' + common,
+    dims: 'Modeled at about 17 cm (6¾ in) overall (trays list 7 in and 10 in); blades about 5.6 cm from screw to tip, up to about 1 cm wide, curved about 8-9 mm to one side, semi-blunt tips. Curve depth, widths and ring sizes are approximations.'
+  }));
+})(window);
+
+</script>
+<script>
+/* Metzenbaum (dissecting) scissors, curved, 18 cm (7 in). PROCEDURAL EDUCATIONAL MODEL, not a scan (factory: model_a_scissors.js).
+   Identifying geometry: delicate pattern. LONG handles/shanks and SHORT, NARROW, thin blades (about a quarter of the overall
+   length or less) with blunt rounded tips, usually curved. Compare with Mayo: much longer handle-to-blade ratio, blades about
+   half as wide and two-thirds as thick.
+   Sourced: 18 cm curved blunt/blunt (MSF Unicat 04-33-18, UNFPA, Eickemeyer 118318), "shaft longer than the blades" (WPI),
+   blade "approximately one quarter of the scissor length" (Covetrus listing), rounded tips for blunt dissection (Wikipedia).
+   Approximations: blade width/thickness, curve depth, ring and hub sizes, shank path (instrument knowledge, not measured). */
+(function (root) {
+  const ST3D = root.ST3D;
+  ST3D.models.metz = ST3D.scissors({
+    id: 'metz', recordId: 'metz',
+    size: 18.0, cx: -4.8, zr: 0.03, tH: 0.2, hubR: 0.42, screwR: 0.28, screwH: 0.07, ringScaleB: 1.06,
+    ring: { cx: -12.6, cy: 1.3, rx: 1.2, ry: 1.05, wall: 0.26, t: 0.26 },
+    shankPts: [[-9.5, 0.58], [-6.5, 0.38], [-3.5, 0.19], [-1.2, 0.05]],
+    shankHW: [0.24, 0.2], jog: [-8.2, -4.6], closeDist: 7.5,
+    blade: { L: 4.2, w0: 0.6, w1: 0.34, t0: 0.2, t1: 0.12, curve: 0.5, x0: 0.5 },
+    note: 'Curved Metzenbaum, modeled at 18 cm (7 in); the trays also list 5-7 in and 10 in versions with the same proportions. Procedural educational model, not a scan; not checked against a photograph because photo hosts are blocked in the build environment. Sourced: 18 cm curved blunt/blunt pattern, shaft longer than the blades, blade about a quarter of the length, rounded tips (catalog listings). Approximated: blade width (~0.6 cm at the root, ~0.35 cm near the tip), thickness (~2 mm per blade), curve depth (~5 mm), ring, hub and screw sizes, shank path. Each blade is one smooth plate; real blades are hollow-ground with sharper edges.',
+    dims: 'About 18 cm (7 in) overall; blades about 4.2 cm from screw to tip (under a quarter of the length), about 6 mm wide at the root and 2 mm thick each, curved about 5 mm, blunt rounded tips; handles/shanks about 13.8 cm. Widths, thickness, curve and ring sizes are approximations.'
+  });
+})(window);
+
+</script>
+<script>
+/* Hand-held retractors: Army-Navy, Senn, Richardson, Deaver, Malleable (ribbon). PROCEDURAL EDUCATIONAL MODELS.
+   Orientation: handle along X, blades bend toward -Y, blade WIDTH runs along Z (so the front view shows each retractor's profile,
+   the view from above shows blade widths). Built as bent flat bars (U.bar with thickness in-plane and width along Z). */
+(function (root) {
+  const T = root.THREE, ST3D = root.ST3D, U = ST3D.kit;
+  const flat = (pts, thick, widthFn, steel, part, n = 260) => U.mesh(U.bar(pts, () => thick / 2, widthFn, () => 0, n, Math.min(thick / 2, 0.05) * 0.95), steel, part);
+  const arcPts = (cx, cy, r, a0, a1, k = 10) => Array.from({ length: k + 1 }, (_, i) => { const a = a0 + (a1 - a0) * (i / k); return [cx + r * Math.cos(a), cy + r * Math.sin(a)]; });
+
+  // Army-Navy: double-ended, both blades bent ~90 deg to the same side, different blade sizes, small lip at each blade tip.
+  function armyNavy() {
+    const g = new T.Group(), steel = U.steel();
+    const pts = [[-10.5, -4.0], [-10.75, -3.3], [-10.75, -0.6], ...arcPts(-10.15, -0.6, 0.6, Math.PI, Math.PI / 2, 6).slice(1), [-9.5, 0], [9.5, 0], ...arcPts(9.5, -0.6, 0.6, Math.PI / 2, 0, 6).slice(1), [10.1, -0.6], [10.1, -2.8], [9.85, -3.4]];
+    // width along Z: blade A (left) 1.6 cm, handle 1.2 cm, blade B (right) 1.35 cm
+    const len = pts.length; const w = s => (s < 0.17 ? 1.6 : s > 0.86 ? 1.35 : 1.2);
+    g.add(flat(pts, 0.22, s => w(s), steel, 'blades'));
+    return { group: g, center: new T.Vector3(0, -1.6, 0), size: 21.5 };
+  }
+  // Senn: small double-ended; one end a 3-prong rake, the other a flat bent blade.
+  function senn() {
+    const g = new T.Group(), steel = U.steel();
+    const pts = [[-7.4, -1.9], [-7.55, -1.2], [-7.55, -0.4], ...arcPts(-7.15, -0.4, 0.4, Math.PI, Math.PI / 2, 5).slice(1), [-6.75, 0], [6.6, 0]];
+    g.add(flat(pts, 0.18, s => (s < 0.15 ? 0.95 : 0.75), steel, 'blades'));
+    // rake end: three curved prongs with points, bending down at x = 6.6
+    for (const z of [-0.28, 0, 0.28]) {
+      const pr = U.mesh(U.sweep([[6.4, 0, z], [7.05, -0.05, z], [7.35, -0.4, z], [7.4, -1.1, z], [7.2, -1.55, z]], s => 0.08 - 0.06 * U.smooth(0.7, 1, s), 80, 14), steel, 'prongs'); g.add(pr);
+    }
+    return { group: g, center: new T.Vector3(0, -0.8, 0), size: 16.5 };
+  }
+  // Richardson: single-ended, broad blade bent ~90 deg with a rolled lip; flat handle ending in a curled grip.
+  function richardson() {
+    const g = new T.Group(), steel = U.steel();
+    const pts = [[-11.2, 1.0], ...arcPts(-10.6, 0.4, 0.85, Math.PI * 0.75, Math.PI * 1.5, 8).slice(1), [-10.0, -0.45], [-9.4, 0], [7.0, 0], ...arcPts(7.0, -0.7, 0.7, Math.PI / 2, 0, 6).slice(1), [7.7, -0.7], [7.7, -4.6], ...arcPts(8.05, -4.6, 0.35, Math.PI, Math.PI * 1.7, 5).slice(1)];
+    g.add(flat(pts, 0.24, s => (s < 0.62 ? 1.4 : 2.6 * U.smooth(0.62, 0.7, s) + 1.4 * (1 - U.smooth(0.62, 0.7, s))), steel, 'blade'));
+    return { group: g, center: new T.Vector3(-1.5, -1.9, 0), size: 21 };
+  }
+  // Deaver: long flat blade curving in a broad "?" arc for deep retraction; handle with a curled grip at the end.
+  function deaver() {
+    const g = new T.Group(), steel = U.steel();
+    const pts = [[-13.2, 1.3], ...arcPts(-12.6, 0.6, 0.9, Math.PI * 0.75, Math.PI * 1.5, 8).slice(1), [-12.0, -0.3], [-11.2, 0], [2.0, 0], ...arcPts(2.0, -5.0, 5.0, Math.PI / 2, -Math.PI * 0.3, 16).slice(1)];
+    g.add(flat(pts, 0.22, s => (s < 0.45 ? 1.5 : 1.5 + 1.1 * U.smooth(0.45, 0.6, s)), steel, 'blade'));
+    return { group: g, center: new T.Vector3(-2.5, -3.0, 0), size: 26 };
+  }
+  // Malleable (ribbon): long thin flat strip with rounded ends, shown bent near one end the way it is shaped before use.
+  function malleable() {
+    const g = new T.Group(), steel = U.steel({ roughness: 0.38 });
+    const pts = [[-16, 0], [8, 0], ...arcPts(8, -3.0, 3.0, Math.PI / 2, 0, 12).slice(1), [11.0, -6.0]];
+    g.add(flat(pts, 0.1, () => 2.5, steel, 'ribbon'));
+    return { group: g, center: new T.Vector3(-2.5, -2.2, 0), size: 30 };
+  }
+
+  const V = (c, close) => ({
+    front: { pos: [c[0], c[1], 34], tgt: c }, back: { pos: [c[0], c[1], -34], tgt: c }, side: { pos: [c[0], 32, 0.4], tgt: c },
+    oblique: { pos: [c[0] + 10, c[1] + 22, 18], tgt: c }, blades: { pos: [close[0] + 3.5, close[1] + 3.0, 8.5], tgt: close }
+  });
+  const reg = (id, fn, parts, c, close, note, dims, extra) => { ST3D.models[id] = Object.assign({ id, recordId: id, build: fn, hasArticulation: false, parts, partViews: {}, views: V(c, close), status: { state: 'complete-v1', reviewed: false, note }, dims }, extra || {}); };
+  reg('armynavy', armyNavy, [['blades', 'Blades and handle']], [0, -1.6, 0], [10, -1.8, 0], 'Procedural model: double-ended flat retractor, both blades bent about 90 degrees to the same side, two blade sizes. Dimensions approximate.', 'About 21.5 cm (8½ in); blades about 1.6 and 1.35 cm wide. Approximate.');
+  reg('senn', senn, [['blades', 'Flat blade end'], ['prongs', 'Rake end (3 prongs)']], [0, -0.8, 0], [7, -0.8, 0], 'Procedural model: small double-ended retractor with a flat bent blade on one end and three curved prongs on the other. Prongs may be sharp or blunt.', 'About 16 cm. Approximate.');
+  reg('richardson', richardson, [['blade', 'Blade and handle']], [-1.5, -1.9, 0], [7.6, -2.6, 0], 'Procedural model: single-ended retractor with a right-angle blade and a slightly rolled lip, flat handle ending in a curled grip. Your Major tray has narrow and wide; the Minor tray has a baby size. This model shows one size.', 'About 21 cm; blade about 2.6 cm wide and 4.5 cm deep. Approximate.');
+  reg('deaver', deaver, [['blade', 'Curved blade and handle']], [-2.5, -3.0, 0], [5.5, -5.5, 0], 'Procedural model: long flat blade sweeping in a broad curve for deep abdominal retraction, handle with a curled grip. Your Major tray has narrow, medium and wide; this shows one width.', 'About 30 cm measured along the blade (about 21 cm end to end); blade about 2.6 cm wide. Approximate.');
+  reg('malleable', malleable, [['ribbon', 'Bendable ribbon']], [-2.5, -2.2, 0], [9.5, -3.0, 0], 'Procedural model: thin, flat, bendable steel strip with rounded ends, shown bent near one end as it would be shaped for use.', 'About 33 cm × 2.5 cm. Approximate.');
+})(window);
+
+</script>
+<script>
+/* Suction tips: Yankauer, Poole, Frazier. PROCEDURAL EDUCATIONAL MODELS of the reusable metal versions.
+   Ports and perforations are shown as dark recesses on the surface, not cut-through holes. */
+(function (root) {
+  const T = root.THREE, ST3D = root.ST3D, U = ST3D.kit;
+  const barb = (x0, steel, part) => { // ribbed hose connector at the proximal end, axis along X
+    const g = new T.Group();
+    for (let i = 0; i < 3; i++) { const c = new T.Mesh(new T.CylinderGeometry(0.30, 0.42, 0.55, 28), steel.clone()); c.rotation.z = Math.PI / 2; c.position.x = x0 + 0.3 + i * 0.55; c.userData.part = part; g.add(c); }
+    return g;
+  };
+
+  // ---- Yankauer: rigid, angled, tapering tube ending in a bulbous tip with a central opening and side holes ----
+  function yankauer() {
+    const g = new T.Group(), steel = U.steel();
+    g.add(barb(-13.4, steel, 'handle'));
+    const path = [[-12.0, 0, 0], [-4, 0, 0], [1.0, 0, 0], [3.0, -0.45, 0], [6.5, -1.55, 0], [9.6, -2.55, 0]];
+    const r = s => (s < 0.55 ? 0.42 : 0.42 - 0.20 * U.smooth(0.55, 1, s));
+    g.add(U.mesh(U.sweep(path, r, 220), steel, 'shaft'));
+    // bulb tip with ports
+    const tipDir = new T.Vector3(3.1, -1.0, 0).normalize(), tipC = new T.Vector3(9.85, -2.63, 0);
+    const bulb = U.mesh(new T.SphereGeometry(0.42, 32, 20), steel, 'tip'); bulb.scale.set(1.25, 1, 1); bulb.position.copy(tipC); bulb.quaternion.setFromUnitVectors(new T.Vector3(1, 0, 0), tipDir); g.add(bulb);
+    const end = tipC.clone().addScaledVector(tipDir, 0.52); g.add(U.port(0.16, end.toArray(), tipDir.toArray()));
+    const side = new T.Vector3(0, 0, 1);
+    for (const a of [0, Math.PI / 2, Math.PI, 1.5 * Math.PI]) { const n = side.clone().applyAxisAngle(tipDir, a), p = tipC.clone().addScaledVector(n, 0.42).addScaledVector(tipDir, 0.05); g.add(U.port(0.09, p.toArray(), n.toArray())); }
+    return { group: g, center: new T.Vector3(-1.8, -1.1, 0), size: 24.5 };
+  }
+  // ---- Poole: straight tube inside a removable outer sleeve covered in small perforations ----
+  function poole() {
+    const g = new T.Group(), steel = U.steel();
+    g.add(barb(-12.6, steel, 'handle'));
+    g.add(U.mesh(U.sweep([[-11.2, 0, 0], [0, 0, 0], [3.5, 0, 0]], () => 0.32, 80), steel, 'shaft'));
+    const sl = new T.Mesh(new T.CylinderGeometry(0.55, 0.55, 8.6, 40, 1, false), steel.clone()); sl.rotation.z = Math.PI / 2; sl.position.x = 7.6; sl.userData.part = 'sleeve'; g.add(sl);
+    const cap = new T.Mesh(new T.SphereGeometry(0.55, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), steel.clone()); cap.rotation.z = -Math.PI / 2; cap.position.x = 11.9; cap.userData.part = 'sleeve'; g.add(cap);
+    const collar = new T.Mesh(new T.CylinderGeometry(0.62, 0.62, 0.45, 40), steel.clone()); collar.rotation.z = Math.PI / 2; collar.position.x = 3.25; collar.userData.part = 'sleeve'; g.add(collar);
+    for (let i = 0; i < 12; i++) for (let k = 0; k < 8; k++) { const x = 4.2 + i * 0.62, a = (k / 8) * Math.PI * 2 + (i % 2) * (Math.PI / 8), n = [0, Math.cos(a), Math.sin(a)]; g.add(U.port(0.075, [x, 0.555 * n[1], 0.555 * n[2]], n)); }
+    g.add(U.port(0.13, [12.45, 0, 0], [1, 0, 0]));
+    return { group: g, center: new T.Vector3(-0.2, 0, 0), size: 25.5 };
+  }
+  // ---- Frazier: small-bore angled tube with a finger-control hub (vent hole) and a wire stylet ----
+  function frazier() {
+    const g = new T.Group(), steel = U.steel();
+    g.add(barb(-6.4, steel, 'handle'));
+    const hub = U.mesh(U.sweep([[-5.0, 0, 0], [-2.0, 0, 0], [0, 0, 0]], s => 0.38 - 0.16 * U.smooth(0.6, 1, s), 60), steel, 'handle'); g.add(hub);
+    g.add(U.port(0.12, [-2.6, 0.37, 0], [0, 1, 0]));
+    const path = [[-0.2, 0, 0], [1.6, 0, 0], [2.6, -0.25, 0], [4.0, -1.0, 0], [8.8, -3.4, 0]];
+    g.add(U.mesh(U.sweep(path, () => 0.12, 160), steel, 'cannula'));
+    g.add(U.port(0.07, [8.83, -3.415, 0], [2, -1, 0]));
+    // stylet: thin wire through the cannula with a ring grip at the proximal end
+    const st = U.mesh(U.tube([[-7.26, 0, 0], [-6.6, 0, 0], [-5.9, 0, 0]], 0.04, false, 12), steel, 'stylet'); g.add(st);
+    const loop = new T.Mesh(new T.TorusGeometry(0.42, 0.06, 12, 36), steel.clone()); loop.position.set(-7.65, 0, 0); loop.rotation.y = Math.PI / 2; loop.userData.part = 'stylet'; g.add(loop);
+    return { group: g, center: new T.Vector3(0.4, -1.0, 0), size: 17.5 };
+  }
+
+  const views = (c, len, tip, tipDir) => ({
+    front: { pos: [c[0], c[1], 32], tgt: c }, back: { pos: [c[0], c[1], -32], tgt: c }, side: { pos: [c[0], 30, 0.01], tgt: c },
+    oblique: { pos: [c[0] + 10, c[1] + 10, 24], tgt: c }, tip: { pos: [tip[0] + tipDir[0] * 4 + 0.5, tip[1] + tipDir[1] * 4 + 1.6, 2.5], tgt: tip }, jawsOblique: { pos: [tip[0] - 2.5, tip[1] + 2.4, 4.2], tgt: tip }
+  });
+  const reg = (id, fn, parts, v, note, dims) => { ST3D.models[id] = { id, recordId: id, build: fn, hasArticulation: false, parts, partViews: {}, views: v, status: { state: 'complete-v1', reviewed: false, note }, dims }; };
+  reg('yankauer', yankauer, [['handle', 'Hose connector'], ['shaft', 'Angled shaft'], ['tip', 'Bulb tip'], ['ports', 'Openings']], views([-1.8, -1.1, 0], 24.5, [9.9, -2.65, 0], [0.95, -0.3]),
+    'Procedural model of a reusable metal Yankauer: rigid angled tapering tube with a bulb tip, one end opening and side holes. Openings are shown as dark recesses. Exact length and angle vary ("variety of sizes and angles" on your list).', 'About 25 cm overall; bulb about 1 cm long. Approximate.');
+  reg('poole', poole, [['handle', 'Hose connector'], ['shaft', 'Inner tube'], ['sleeve', 'Perforated sleeve'], ['ports', 'Perforations']], views([-0.2, 0, 0], 25.5, [11.5, 0, 0], [1, 0]),
+    'Procedural model of a metal Poole suction: straight inner tube with a removable outer sleeve covered in small holes that keep tissue from blocking the tip. Perforations are shown as dark recesses.', 'About 25 cm overall; sleeve about 9 cm. Approximate.');
+  reg('frazier', frazier, [['handle', 'Hub and connector'], ['ports', 'Finger vent'], ['cannula', 'Angled cannula'], ['stylet', 'Stylet']], views([0.4, -1.0, 0], 17.5, [8.8, -3.4, 0], [0.9, -0.45]),
+    'Procedural model of a Frazier suction: small-bore angled cannula, a hub with a finger-control vent hole, and a wire stylet with a ring grip for clearing clogs (stylet shown parked at the hub end). Openings are dark recesses.', 'Cannula about 9 cm working length; small bore. Approximate.');
 })(window);
 
 </script>
@@ -1987,7 +2408,7 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
     reset() { this.setOpen(0); this.highlight(null); this.view('front'); }
     highlight(part) {
       this.part = part;
-      this.model && this.model.group.traverse(o => { if (o.isMesh) { const on = part && o.userData.part === part; o.material.emissive.setHex(on ? 0x0a7a96 : 0x000000); o.material.emissiveIntensity = on ? 0.9 : 0; } });
+      this.model && this.model.group.traverse(o => { if (o.isMesh) { const on = part && o.userData.part === part; if (o.userData.port) return; o.material.emissive.setHex(on ? 0x0a7a96 : 0x000000); o.material.emissiveIntensity = on ? 0.9 : 0; } });
       this.dirty();
     }
     loop(now) {
@@ -2027,7 +2448,7 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
   const MODELS = ST3D.models, modelIds = () => Object.keys(MODELS).filter(k => MODELS[k].ready !== false);
   const modelOfRec = {}; Object.values(MODELS).forEach(m => (m.records || [m.recordId]).forEach(r => { modelOfRec[r] = m.id; }));
   const recOfModel = m => byId[MODELS[m].recordId];
-  const VIEWLABEL = { front: 'Front', back: 'Back', side: 'Edge-on', oblique: '3/4 view', jaws: 'Jaws close-up', jawsOblique: 'Jaws 3/4', jawsTop: 'Jaws from above', tip: 'Tip end-on', ratchet: 'Ratchet', box: 'Box lock', blades: 'Blades', screw: 'Pivot screw', rings: 'Rings', teeth: 'Teeth' };
+  const VIEWLABEL = { front: 'Front', back: 'Back', side: 'Edge-on', oblique: '3/4 view', jaws: 'Jaws close-up', jawsOblique: 'Jaws 3/4', jawsTop: 'Jaws from above', tip: 'Tip end-on', ratchet: 'Ratchet', box: 'Box lock', blades: 'Blades', screw: 'Pivot screw', rings: 'Rings', teeth: 'Teeth', jawsOpen: 'Jaws open' };
 
   // ---------- storage ----------
   const KEY = 'st3d.v1';
@@ -2098,8 +2519,10 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
   // ---------- Identify (model-based quiz) ----------
   function newIdentify() {
     const ids = E.priorityOrder(S.prog, modelIds().map(m => recOfModel(m))).map(r => modelOfRec[r.id]);
-    const pool = RECORDS.filter(r => r.quiz);
-    ID = { qs: ids.map(mid => { const r = recOfModel(mid), d = E.pickDistractors(r, pool, 3); return { m: mid, choices: E.shuffle([r, ...d]).map(x => x.id), answer: r.id, chosen: null }; }), i: 0, score: 0, done: false };
+    const modeled = modelIds().map(m => recOfModel(m));
+    const pickD = r => { const out = E.shuffle(modeled.filter(x => x.id !== r.id)).sort((a, b) => (b.cat === r.cat) - (a.cat === r.cat)).slice(0, 3);
+      for (const x of E.pickDistractors(r, RECORDS.filter(q => q.quiz), 6)) { if (out.length >= 3) break; if (!out.includes(x) && x.id !== r.id) out.push(x); } return out; };
+    ID = { qs: ids.map(mid => { const r = recOfModel(mid), d = pickD(r); return { m: mid, choices: E.shuffle([r, ...d]).map(x => x.id), answer: r.id, chosen: null }; }), i: 0, score: 0, done: false };
   }
   function viewIdentify() {
     if (!modelIds().length) return `<div class="panel">No models yet.</div>`;
@@ -2147,7 +2570,7 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
   }
 
   // ---------- Inventory ----------
-  const stateOf = r => { const m = modelOfRec[r.id]; return m ? { k: 'ready', t: '3D model ready', n: MODELS[m].status.note } : { k: 'none', t: 'No 3D model yet', n: 'Text details only for now.' }; };
+  const stateOf = r => { const m = modelOfRec[r.id]; return m ? (MODELS[m].status.reviewed ? { k: 'ready', t: '3D model ready', n: MODELS[m].status.note } : { k: 'ready', t: '3D model (review pending)', n: MODELS[m].status.note }) : { k: 'none', t: 'No 3D model yet', n: 'Text details only for now.' }; };
   function viewInventory() {
     const list = RECORDS.filter(r => invTray === 'All' || r.trays.includes(invTray)).sort((a, b) => (modelOfRec[b.id] ? 1 : 0) - (modelOfRec[a.id] ? 1 : 0) || a.name.localeCompare(b.name));
     const per = TRAYS.map(t => { const rs = RECORDS.filter(r => r.trays.includes(t)); return `<span class="chip">${t}: <b>${rs.filter(r => modelOfRec[r.id]).length}</b> of ${rs.length} instruments modeled</span>`; }).join('');
