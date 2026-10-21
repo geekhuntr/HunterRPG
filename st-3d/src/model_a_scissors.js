@@ -74,7 +74,7 @@
       const thick = Math.min(RING.t, o.tH);
       g.add(U.mesh(U.bar(cl, hw, thick, jog, 200, Math.min(0.08, thick * 0.3)), steel, 'shanks'));
       // hub: round boss around the screw, full layer thickness
-      const hub = U.extrude(new T.Shape(U.ellipsePts(0, 0, o.hubR, o.hubR, 64)), o.tH, 0.04); hub.translate(0, 0, zs * LAYER);
+      const hub = U.extrude(new T.Shape(U.ellipsePts(0, 0, o.hubR, o.hubR, 64)), o.tH, 0.015); hub.translate(0, 0, zs * LAYER);
       g.add(U.mesh(hub, steel, 'blades'));
       // blade (curve sign inverted on B because the whole half is mirrored in Y afterwards)
       g.add(U.mesh(bladeGeo(o.blade, zs, isB ? -1 : 1), steel, 'blades'));
@@ -111,7 +111,7 @@
         tip: { pos: [L + 3.4, o.blade.curve + 2.4, 4.4], tgt: [L - 1.0, o.blade.curve * 0.6, 0] },
         screw: { pos: [0.9, 1.3, 4.6], tgt: [0, 0, 0] }
       },
-      status: { state: 'complete-v1', note: o.note },
+      status: { state: 'complete-v1', reviewed: true, note: o.note },
       dims: o.dims
     };
   };

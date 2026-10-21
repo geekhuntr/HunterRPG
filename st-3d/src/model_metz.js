@@ -9,7 +9,7 @@
   const ST3D = root.ST3D;
   ST3D.models.metz = ST3D.scissors({
     id: 'metz', recordId: 'metz',
-    size: 18.0, cx: -4.8, zr: 0.03, tH: 0.2, hubR: 0.42, screwR: 0.28, screwH: 0.07, ringScaleB: 1.06,
+    size: 18.0, cx: -4.8, zr: 0.03, tH: 0.2, hubR: 0.32, screwR: 0.28, screwH: 0.07, ringScaleB: 1.06,
     ring: { cx: -12.6, cy: 1.3, rx: 1.2, ry: 1.05, wall: 0.26, t: 0.26 },
     shankPts: [[-9.5, 0.58], [-6.5, 0.38], [-3.5, 0.19], [-1.2, 0.05]],
     shankHW: [0.24, 0.2], jog: [-8.2, -4.6], closeDist: 9,

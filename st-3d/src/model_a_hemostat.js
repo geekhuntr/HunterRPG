@@ -77,7 +77,7 @@
     const RING = { cx: -9.0, cy: 1.36, rx: 1.22, ry: 1.12, wall: 0.31 };
     const P = o.pitch, D = o.depth;
     // serration zone: whole teeth from sx0, ending before the tip rounding
-    const sx0 = o.serrFrom, nTeeth = Math.floor((XT - RT - 0.04 - sx0) / P), sx1 = sx0 + nTeeth * P;
+    const sx0 = o.serrFrom, nTeeth = Math.floor((XT - 0.05 - sx0) / P), sx1 = sx0 + nTeeth * P;
     const tri = x => { if (x < sx0 || x > sx1) return 0; const u = (((x - sx0) / P) % 1 + 1) % 1; return (D / 2) * (u < 0.25 ? 4 * u : u < 0.75 ? 2 - 4 * u : 4 * u - 4); };
     const curve = x => o.curveK * Math.pow(Math.max(0, x - BOXX), 2);
     const uJ = x => clamp((x - BOXX) / (XT - BOXX), 0, 1);
@@ -89,7 +89,8 @@
     for (let x = J0; x < sx0 - 1e-6; x += 0.04) xs.push(x);
     for (let k = 0; k <= nTeeth * 4; k++) xs.push(sx0 + (k * P) / 4);
     for (let x = sx1 + 0.04; x < XT - RT - 1e-6; x += 0.04) xs.push(x);
-    for (let k = 0; k <= 12; k++) xs.push(XT - RT + RT * Math.sin((k / 12) * (Math.PI / 2)));
+    for (let k = 0; k <= 12; k++) { const x = XT - RT + RT * Math.sin((k / 12) * (Math.PI / 2)); if (x > sx1 + 0.004) xs.push(x); } // teeth run into the tip rounding
+    xs.sort((a, b) => a - b);
     const xsU = xs.filter((x, i) => i === 0 || x - xs[i - 1] > 1e-5);
     const xg = []; // smoothing group of each station interval: one per tooth flank, 0 elsewhere
     for (let i = 0; i < xsU.length - 1; i++) { const xm = (xsU[i] + xsU[i + 1]) / 2; xg.push(xm > sx0 && xm < sx1 ? 1 + Math.floor((xm - sx0 + P / 4) / (P / 2)) : 0); }
@@ -150,7 +151,7 @@
         ratchet: { pos: [-6.95, 1.5, 4.6], tgt: [-6.95, 0.1, 0] },
         box: { pos: [0.5, 1.9, 4.8], tgt: [0.1, 0, 0] }
       },
-      status: { state: 'complete-v1', note: o.note },
+      status: { state: 'complete-v1', reviewed: true, note: o.note },
       dims: o.dims
     };
   };

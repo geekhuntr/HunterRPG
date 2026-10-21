@@ -71,7 +71,7 @@
     const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals(); g.userData.curve = curve; return g;
   };
   // A dark recess on a surface (suction ports). Shown as a shallow dark disc, not a true cut-through hole.
-  U.port = (r, at, normal) => { const m = new T.Mesh(new T.CylinderGeometry(r, r, 0.02, 24), new T.MeshStandardMaterial({ color: 0x07090b, roughness: 0.9, metalness: 0 })); m.position.set(...at); m.quaternion.setFromUnitVectors(new T.Vector3(0, 1, 0), new T.Vector3(...normal).normalize()); m.userData.part = 'ports'; m.userData.port = true; return m; };
+  U.port = (r, at, normal) => { const m = new T.Mesh(new T.CylinderGeometry(r, r, 0.02, 24), new T.MeshStandardMaterial({ color: 0x07090b, roughness: 0.9, metalness: 0 })); const nn = new T.Vector3(...normal).normalize(); m.position.set(...at).addScaledVector(nn, -0.009); m.quaternion.setFromUnitVectors(new T.Vector3(0, 1, 0), nn); m.userData.part = 'ports'; m.userData.port = true; return m; };
   U.mesh = (geo, mat, part) => { const m = new T.Mesh(geo, mat.clone()); m.userData.part = part; m.userData.base = m.material.color.getHex(); return m; };
   U.roundRect = (x, y, w, h, r) => { const s = new T.Shape(); s.moveTo(x + r, y); s.lineTo(x + w - r, y); s.quadraticCurveTo(x + w, y, x + w, y + r); s.lineTo(x + w, y + h - r); s.quadraticCurveTo(x + w, y + h, x + w - r, y + h); s.lineTo(x + r, y + h); s.quadraticCurveTo(x, y + h, x, y + h - r); s.lineTo(x, y + r); s.quadraticCurveTo(x, y, x + r, y); return s; };
   // closed smooth outline from control points

@@ -13,12 +13,12 @@
   const T = root.THREE, ST3D = root.ST3D, U = ST3D.kit;
   const RING = { cx: -8.75, cy: 1.23, rx: 1.3, ry: 1.2, wall: 0.34 };
   // tip head (half A, whose jaw lies at y < 0; its grasping face looks toward +y)
-  const FACE = -0.062, HEAD_T = 0.14, HX0 = 4.86, HX1 = 5.44, TX0 = 5.29, TX1 = 5.41;
-  const TB = 0.052, TH = 0.088, PITCH = 0.108; // tooth base plane (|y|), tooth height, pitch across the tip width
+  const FACE = -0.062, HEAD_T = 0.14, HX0 = 5.03, HX1 = 5.44, TX0 = 5.29, TX1 = 5.41;
+  const TB = 0.052, TH = 0.088, PITCH = 0.106, EDGE = 0.262; // tooth base plane (|y|), tooth height, pitch across the tip width
 
   // shank centerline (ring -> box -> jaw); jaw part diverges slightly then turns in to the head
   const CL = [[-7.95, 0.50], [-7.3, 0.42], [-6.0, 0.40], [-3.2, 0.30], [-1.0, 0.20], [0, 0], [0.7, -0.13], [1.5, -0.17],
-    [2.5, -0.215], [3.5, -0.245], [4.25, -0.24], [4.65, -0.205], [4.88, -0.155], [5.0, -0.125]];
+    [2.5, -0.215], [3.5, -0.245], [4.25, -0.24], [4.65, -0.208], [4.88, -0.165], [5.07, -0.13]];
   const N = 260;
   const clPts = new T.CatmullRomCurve3(CL.map(p => new T.Vector3(p[0], p[1], 0)), false, 'centripetal').getSpacedPoints(N);
   const xAt = s => clPts[Math.round(s * N)].x;
@@ -26,11 +26,15 @@
     return x < 0.3 ? 0.27 - 0.08 * U.smooth(-3.2, 0.3, x) : 0.19 - 0.09 * U.smooth(0.3, 1.6, x) - 0.035 * U.smooth(4.3, 4.95, x); };
 
   // row of triangular-prism teeth across the tip width (z), pointing toward +y, extruded along x
-  function teeth(centers) {
-    const s = new T.Shape(), w = PITCH * 0.8, lo = -TB - 0.03;
-    const z0 = centers[0] - w / 2, z1 = centers[centers.length - 1] + w / 2;
+  // edge: when set, the row is carried to +-edge with a half-tooth flank at each end (the 4-tooth jaw), so the teeth span the tip
+  function teeth(centers, edge) {
+    const s = new T.Shape(), w = PITCH * 0.8, lo = -TB - 0.03, k = TH / (w / 2);
+    const cN = centers[centers.length - 1], v = cN + PITCH / 2 + (PITCH - w) / 2; // start of the outer half-tooth flank
+    const z1 = edge ? edge : cN + w / 2, z0 = -z1;
     s.moveTo(z0, lo);
+    if (edge) { s.lineTo(-edge, -TB + k * (edge - v)); s.lineTo(-v, -TB); }
     for (const c of centers) { s.lineTo(c - w / 2, -TB); s.lineTo(c, -TB + TH); s.lineTo(c + w / 2, -TB); }
+    if (edge) { s.lineTo(v, -TB); s.lineTo(edge, -TB + k * (edge - v)); }
     s.lineTo(z1, lo); s.lineTo(z0, lo);
     const g = new T.ExtrudeGeometry(s, { depth: TX1 - TX0, bevelEnabled: false });
     g.rotateY(Math.PI / 2); g.translate(TX0, 0, 0); // shape u -> -z (rows are symmetric), depth -> +x
@@ -59,8 +63,8 @@
     const boss = U.extrude(new T.Shape(pts.map(p => new T.Vector2(p[0], p[1]))), 0.15, 0.02); boss.translate(0, 0, zs * 0.075);
     g.add(U.mesh(boss, steel, 'ratchet'));
     // tip head: spade widening to ~5.6 mm, inner face just behind the teeth, small window behind the tooth row
-    const head = U.spline([[HX0, 0.0], [HX0 + 0.02, 0.16], [5.1, 0.2], [5.3, 0.275], [HX1 - 0.015, 0.27], [HX1, 0.15], [HX1, -0.15],
-      [HX1 - 0.015, -0.27], [5.3, -0.275], [5.1, -0.2], [HX0 + 0.02, -0.16]], 120);
+    const head = U.spline([[HX0, 0.0], [HX0 + 0.01, 0.15], [5.13, 0.2], [5.29, 0.272], [HX1 - 0.012, 0.272], [HX1, 0.24], [HX1, -0.24],
+      [HX1 - 0.012, -0.272], [5.29, -0.272], [5.13, -0.2], [HX0 + 0.01, -0.15]], 120);
     head.holes.push(new T.Path(U.spline([[4.99, 0], [5.04, 0.07], [5.17, 0.14], [5.22, 0.12], [5.22, -0.12], [5.17, -0.14], [5.04, -0.07]], 60).getPoints().reverse()));
     g.add(U.mesh(U.plateXZ(head, HEAD_T, FACE - HEAD_T / 2, 0.025), steel, 'jaws'));
     // interlocking teeth: 4 on half A, 5 on half B (offset half a pitch so they mesh)
