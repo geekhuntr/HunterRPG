@@ -16,7 +16,7 @@
   const MODELS = ST3D.models, modelIds = () => Object.keys(MODELS).filter(k => MODELS[k].ready !== false);
   const modelOfRec = {}; Object.values(MODELS).forEach(m => (m.records || [m.recordId]).forEach(r => { modelOfRec[r] = m.id; }));
   const recOfModel = m => byId[MODELS[m].recordId];
-  const VIEWLABEL = { front: 'Front', back: 'Back', side: 'Edge-on', oblique: '3/4 view', jaws: 'Jaws close-up', jawsOblique: 'Jaws 3/4', jawsTop: 'Jaws from above', tip: 'Tip end-on', ratchet: 'Ratchet', box: 'Box lock', blades: 'Blades', screw: 'Pivot screw', rings: 'Rings', teeth: 'Teeth' };
+  const VIEWLABEL = { front: 'Front', back: 'Back', side: 'Edge-on', oblique: '3/4 view', jaws: 'Jaws close-up', jawsOblique: 'Jaws 3/4', jawsTop: 'Jaws from above', tip: 'Tip end-on', ratchet: 'Ratchet', box: 'Box lock', blades: 'Blades', screw: 'Pivot screw', rings: 'Rings', teeth: 'Teeth', jawsOpen: 'Jaws open' };
 
   // ---------- storage ----------
   const KEY = 'st3d.v1';
@@ -87,8 +87,10 @@
   // ---------- Identify (model-based quiz) ----------
   function newIdentify() {
     const ids = E.priorityOrder(S.prog, modelIds().map(m => recOfModel(m))).map(r => modelOfRec[r.id]);
-    const pool = RECORDS.filter(r => r.quiz);
-    ID = { qs: ids.map(mid => { const r = recOfModel(mid), d = E.pickDistractors(r, pool, 3); return { m: mid, choices: E.shuffle([r, ...d]).map(x => x.id), answer: r.id, chosen: null }; }), i: 0, score: 0, done: false };
+    const modeled = modelIds().map(m => recOfModel(m));
+    const pickD = r => { const out = E.shuffle(modeled.filter(x => x.id !== r.id)).sort((a, b) => (b.cat === r.cat) - (a.cat === r.cat)).slice(0, 3);
+      for (const x of E.pickDistractors(r, RECORDS.filter(q => q.quiz), 6)) { if (out.length >= 3) break; if (!out.includes(x) && x.id !== r.id) out.push(x); } return out; };
+    ID = { qs: ids.map(mid => { const r = recOfModel(mid), d = pickD(r); return { m: mid, choices: E.shuffle([r, ...d]).map(x => x.id), answer: r.id, chosen: null }; }), i: 0, score: 0, done: false };
   }
   function viewIdentify() {
     if (!modelIds().length) return `<div class="panel">No models yet.</div>`;
@@ -136,7 +138,7 @@
   }
 
   // ---------- Inventory ----------
-  const stateOf = r => { const m = modelOfRec[r.id]; return m ? { k: 'ready', t: '3D model ready', n: MODELS[m].status.note } : { k: 'none', t: 'No 3D model yet', n: 'Text details only for now.' }; };
+  const stateOf = r => { const m = modelOfRec[r.id]; return m ? (MODELS[m].status.reviewed ? { k: 'ready', t: '3D model ready', n: MODELS[m].status.note } : { k: 'ready', t: '3D model (review pending)', n: MODELS[m].status.note }) : { k: 'none', t: 'No 3D model yet', n: 'Text details only for now.' }; };
   function viewInventory() {
     const list = RECORDS.filter(r => invTray === 'All' || r.trays.includes(invTray)).sort((a, b) => (modelOfRec[b.id] ? 1 : 0) - (modelOfRec[a.id] ? 1 : 0) || a.name.localeCompare(b.name));
     const per = TRAYS.map(t => { const rs = RECORDS.filter(r => r.trays.includes(t)); return `<span class="chip">${t}: <b>${rs.filter(r => modelOfRec[r.id]).length}</b> of ${rs.length} instruments modeled</span>`; }).join('');

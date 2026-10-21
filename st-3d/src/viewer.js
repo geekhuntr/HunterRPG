@@ -50,7 +50,7 @@
     reset() { this.setOpen(0); this.highlight(null); this.view('front'); }
     highlight(part) {
       this.part = part;
-      this.model && this.model.group.traverse(o => { if (o.isMesh) { const on = part && o.userData.part === part; o.material.emissive.setHex(on ? 0x0a7a96 : 0x000000); o.material.emissiveIntensity = on ? 0.9 : 0; } });
+      this.model && this.model.group.traverse(o => { if (o.isMesh) { const on = part && o.userData.part === part; if (o.userData.port) return; o.material.emissive.setHex(on ? 0x0a7a96 : 0x000000); o.material.emissiveIntensity = on ? 0.9 : 0; } });
       this.dirty();
     }
     loop(now) {

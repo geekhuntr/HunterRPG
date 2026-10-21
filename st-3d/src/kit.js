@@ -44,12 +44,12 @@
   // Swept flat bar with a rounded-rectangle section along a 2D centerline; zFn(x) lifts it in Z (joggle). Smooth normals, closed ends.
   U.bar = (pts, hwFn, th, zFn, n = 140, r = 0.06) => {
     const curve = new T.CatmullRomCurve3(pts.map(p => new T.Vector3(p[0], p[1], 0)), false, 'centripetal'), P = curve.getSpacedPoints(n);
-    const arc = 4, prof = [], b = th / 2;
+    const arc = 4, prof = [], thF = typeof th === 'function' ? th : () => th;
     const corners = [[1, 1, 0], [-1, 1, 1], [-1, -1, 2], [1, -1, 3]];
     for (const [sx, sy, k] of corners) for (let j = 0; j <= arc; j++) { const a = (k * Math.PI) / 2 + (j / arc) * (Math.PI / 2); prof.push([sx, sy, Math.cos(a), Math.sin(a)]); }
     const pos = [], idx = [], m = prof.length;
     for (let i = 0; i <= n; i++) {
-      const a = P[Math.max(0, i - 1)], c = P[Math.min(n, i + 1)], tx = c.x - a.x, ty = c.y - a.y, l = Math.hypot(tx, ty) || 1, nx = -ty / l, ny = tx / l, hw = hwFn(i / n), z0 = zFn(P[i].x);
+      const a = P[Math.max(0, i - 1)], c = P[Math.min(n, i + 1)], tx = c.x - a.x, ty = c.y - a.y, l = Math.hypot(tx, ty) || 1, nx = -ty / l, ny = tx / l, hw = hwFn(i / n), z0 = zFn(P[i].x), b = thF(i / n) / 2;
       for (const [sx, sy, ca, sa] of prof) { const u = sx * (hw - r) + r * ca, v = sy * (b - r) + r * sa; pos.push(P[i].x + nx * u, P[i].y + ny * u, z0 + v); }
     }
     for (let i = 0; i < n; i++) for (let j = 0; j < m; j++) { const a = i * m + j, b2 = i * m + ((j + 1) % m), c = (i + 1) * m + j, d = (i + 1) * m + ((j + 1) % m); idx.push(a, c, b2, b2, c, d); }
@@ -60,6 +60,18 @@
   U.tube = (pts3, r, closed = false, n = 160) => new T.TubeGeometry(new T.CatmullRomCurve3(pts3.map(p => new T.Vector3(...p)), closed, 'centripetal', 0.5), n, r, 12, closed);
   // Flat plate whose outline is drawn in the X-Z plane (width across the instrument's thickness), thickness along Y, centered at y = yc.
   U.plateXZ = (shape, thick, yc, bevel = 0.03) => { const g = U.extrude(shape, thick, bevel); g.rotateX(Math.PI / 2); g.translate(0, yc, 0); return g; };
+  // Round tube along a 3D path with a radius that varies along its length (suction tips, cannulas, handles); closed ends.
+  U.sweep = (pts3, rFn, n = 160, radial = 24) => {
+    const curve = new T.CatmullRomCurve3(pts3.map(p => new T.Vector3(...p)), false, 'centripetal', 0.5), fr = curve.computeFrenetFrames(n, false);
+    const pos = [], idx = [];
+    for (let i = 0; i <= n; i++) { const P = curve.getPointAt(i / n), r = rFn(i / n), N = fr.normals[i], B = fr.binormals[i];
+      for (let j = 0; j < radial; j++) { const a = (j / radial) * Math.PI * 2, c = Math.cos(a), s2 = Math.sin(a); pos.push(P.x + r * (c * N.x + s2 * B.x), P.y + r * (c * N.y + s2 * B.y), P.z + r * (c * N.z + s2 * B.z)); } }
+    for (let i = 0; i < n; i++) for (let j = 0; j < radial; j++) { const a = i * radial + j, b = i * radial + ((j + 1) % radial), c = (i + 1) * radial + j, d = (i + 1) * radial + ((j + 1) % radial); idx.push(a, b, c, b, d, c); }
+    for (const end of [0, n]) { const P = curve.getPointAt(end / n), ci = pos.length / 3; pos.push(P.x, P.y, P.z); for (let j = 0; j < radial; j++) { const a = end * radial + j, b = end * radial + ((j + 1) % radial); end ? idx.push(ci, a, b) : idx.push(ci, b, a); } }
+    const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals(); g.userData.curve = curve; return g;
+  };
+  // A dark recess on a surface (suction ports). Shown as a shallow dark disc, not a true cut-through hole.
+  U.port = (r, at, normal) => { const m = new T.Mesh(new T.CylinderGeometry(r, r, 0.02, 24), new T.MeshStandardMaterial({ color: 0x07090b, roughness: 0.9, metalness: 0 })); m.position.set(...at); m.quaternion.setFromUnitVectors(new T.Vector3(0, 1, 0), new T.Vector3(...normal).normalize()); m.userData.part = 'ports'; m.userData.port = true; return m; };
   U.mesh = (geo, mat, part) => { const m = new T.Mesh(geo, mat.clone()); m.userData.part = part; m.userData.base = m.material.color.getHex(); return m; };
   U.roundRect = (x, y, w, h, r) => { const s = new T.Shape(); s.moveTo(x + r, y); s.lineTo(x + w - r, y); s.quadraticCurveTo(x + w, y, x + w, y + r); s.lineTo(x + w, y + h - r); s.quadraticCurveTo(x + w, y + h, x + w - r, y + h); s.lineTo(x + r, y + h); s.quadraticCurveTo(x, y + h, x, y + h - r); s.lineTo(x, y + r); s.quadraticCurveTo(x, y, x + r, y); return s; };
   // closed smooth outline from control points

@@ -72,7 +72,7 @@
       ratchet: { pos: [-6.2, 2.0, 5.5], tgt: [-6.2, 0.1, 0] },
       box: { pos: [0.6, 2.0, 5.5], tgt: [0, 0, 0] }
     },
-    status: { state: 'complete-v2', note: 'Procedural educational model, not a scan. Version 2 after a visual-accuracy review: fenestrated triangular jaws perpendicular to the ring plane, bowed jaws that leave an oval grasping space, ratchet beside the rings, smaller box lock. Length and ~9 mm jaw width come from catalog listings; bow profile, ratchet and box-lock sizes are approximations. Not compared against a photograph because photo hosts are blocked in the build environment.' },
+    status: { state: 'complete-v2', reviewed: true, note: 'Procedural educational model, not a scan. Version 2 after a visual-accuracy review: fenestrated triangular jaws perpendicular to the ring plane, bowed jaws that leave an oval grasping space, ratchet beside the rings, smaller box lock. Length and ~9 mm jaw width come from catalog listings; bow profile, ratchet and box-lock sizes are approximations. Not compared against a photograph because photo hosts are blocked in the build environment.' },
     dims: 'About 16.5 cm (6½ in) overall, ~9 mm wide jaw tips.'
   };
 })(window);
