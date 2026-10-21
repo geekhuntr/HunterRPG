@@ -100,20 +100,20 @@
       g.add(U.mesh(U.extrude(U.ringShape(RING.cx, RING.cy, RING.rx, RING.ry, RING.wall), 0.32, 0.05), steel, 'rings'));
       // shank: leaves the ring's inner-distal quadrant, runs beside its partner (inner edge just off the axis) to the box,
       // and crosses to the other side inside the box. z-joggle only inside the box.
-      const edge = x => 0.012 + 0.035 * clamp((-x - BOXX) / 6.8, 0, 1);
+      const edge = x => 0.012 + 0.14 * Math.pow(clamp((-x - BOXX) / 6.0, 0, 1), 1.3); // narrow V-gap between the shanks, widest at the ratchet
       const hwX = x => o.shankW * (0.18 + 0.08 * clamp((-x - BOXX) / 6.8, 0, 1));
-      const cl = [[-8.62, 0.46], [-8.2, 0.36]];
+      const cl = [[-8.55, 0.43], [-8.15, 0.42]];
       for (const x of [-7.7, -7.0, -6.0, -4.5, -3.0, -1.6, -0.62]) cl.push([x, edge(x) + hwX(x)]);
       cl.push([-0.2, 0.12], [0.15, -0.06], [J0, -o.w0 / 2]);
-      const xOf = s => -8.62 + s * (J0 + 8.62);
-      const hw = s => { const x = xOf(s); return x < -7.7 ? hwX(-7.7) * (0.82 + 0.18 * clamp((x + 8.62) / 0.92, 0, 1)) : x > -0.4 ? Math.min(hwX(x), o.w0 / 2 + 0.03) : hwX(x); };
+      const xOf = s => -8.55 + s * (J0 + 8.55);
+      const hw = s => { const x = xOf(s); return x < -7.7 ? hwX(-7.7) * (0.74 + 0.26 * clamp((x + 8.55) / 0.85, 0, 1)) : x > -0.4 ? Math.min(hwX(x), o.w0 / 2 + 0.03) : hwX(x); };
       const jog = x => zs * 0.075 * U.smooth(-0.48, -0.3, x) * (1 - U.smooth(0.3, 0.46, x));
       g.add(U.mesh(outward(U.bar(cl, hw, o.shankT, jog, 240, 0.07)), steel, 'shanks'));
       // ratchet boss beside the ring: half thickness (front half on A, back half on B), teeth along the inner edge
-      const x0 = -7.62, x1 = -6.3, pitch = 0.26, depth = 0.1, yb = -0.03;
-      const pts = [[x0, 0.3], [x1, 0.3], [x1, yb]];
+      const x0 = -7.62, x1 = -6.3, pitch = 0.26, depth = 0.09, yb = 0.0;
+      const pts = [[x0, 0.34], [x1, 0.34], [x1, yb]];
       for (let x = x1; x > x0 + pitch * 0.9; x -= pitch) { pts.push([x - pitch * 0.2, yb - depth]); pts.push([x - pitch, yb]); }
-      pts.push([x0, 0.08]);
+      pts.push([x0, 0.1]);
       const boss = U.extrude(new T.Shape(pts.map(p => new T.Vector2(p[0], p[1]))), 0.12, 0.02); boss.translate(0, 0, zs * 0.06);
       g.add(U.mesh(boss, steel, 'ratchet'));
       // jaw (curve and teeth inverted on half B so that, mirrored, it bends the same way and its teeth interlock with A's)
