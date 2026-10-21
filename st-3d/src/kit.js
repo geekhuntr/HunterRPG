@@ -72,6 +72,36 @@
   };
   // A dark recess on a surface (suction ports). Shown as a shallow dark disc, not a true cut-through hole.
   U.port = (r, at, normal) => { const m = new T.Mesh(new T.CylinderGeometry(r, r, 0.02, 24), new T.MeshStandardMaterial({ color: 0x07090b, roughness: 0.9, metalness: 0 })); const nn = new T.Vector3(...normal).normalize(); m.position.set(...at).addScaledVector(nn, -0.009); m.quaternion.setFromUnitVectors(new T.Vector3(0, 1, 0), nn); m.userData.part = 'ports'; m.userData.port = true; return m; };
+  // Box lock, the joint of a ring-handled instrument, built in half B's local frame around the pivot at the origin.
+  // The female shank widens into a flat box with slanted ends: two thin face plates (leaves) top and bottom, joined by side
+  // walls, with a channel between them that the other shank passes through (both shanks exit the channel at the box ends),
+  // and a small flush pin through the middle. o: L length, W width, T thickness, slant (x offset of the top edge vs bottom),
+  // shankT thickness of the shanks, sw half-width of the shanks at the box, m |slope| of the shanks through the pivot.
+  // piecewise-linear y(x) along a centerline given as [[x, y], ...] with increasing x
+  U.lerpY = cl => x => { if (x <= cl[0][0]) return cl[0][1]; for (let i = 1; i < cl.length; i++) if (x <= cl[i][0]) { const [x0, y0] = cl[i - 1], [x1, y1] = cl[i]; return y0 + ((y1 - y0) * (x - x0)) / ((x1 - x0) || 1e-9); } return cl[cl.length - 1][1]; };
+  U.boxLock = (o) => {
+    const L = o.L, W = o.W, TH = o.T, k = o.slant == null ? 0.22 : o.slant, tc = o.shankT + 0.03, tl = (TH - tc) / 2, m = o.m, sw = o.sw;
+    const outline = [[-L / 2 - k, -W / 2], [L / 2 - k, -W / 2], [L / 2 + k, W / 2], [-L / 2 + k, W / 2]];
+    const steel = U.steel(), g = new T.Group();
+    const shapeOf = pts => new T.Shape(pts.map(p => new T.Vector2(p[0], p[1])));
+    for (const s of [1, -1]) { const leaf = U.extrude(shapeOf(outline), tl, 0.02); leaf.translate(0, 0, s * (TH / 2 - tl / 2)); g.add(U.mesh(leaf, steel, 'box')); }
+    // side walls: the parts of the box outside both shank strips (y = +-m x +- sw), as four convex pieces
+    const clip = (poly, a, b, c) => { const out = []; for (let i = 0; i < poly.length; i++) { const P = poly[i], Q = poly[(i + 1) % poly.length], fp = a * P[0] + b * P[1] + c, fq = a * Q[0] + b * Q[1] + c; if (fp >= 0) out.push(P); if ((fp >= 0) !== (fq >= 0)) { const t = fp / (fp - fq); out.push([P[0] + t * (Q[0] - P[0]), P[1] + t * (Q[1] - P[1])]); } } return out; };
+    const area = poly => Math.abs(poly.reduce((a, P, i) => { const Q = poly[(i + 1) % poly.length]; return a + P[0] * Q[1] - Q[0] * P[1]; }, 0)) / 2;
+    // strip A = the other shank (mirror of this half's centerline), strip B = this shank; each is the band of half-width sw
+    // around the chord through the shank's positions at the two box ends (o.yAt(x) = this half's centerline y), else slope m
+    const xL = -L / 2 - k, xR = L / 2 + k, yB = o.yAt ? [o.yAt(xL), o.yAt(xR)] : [-m * xL, -m * xR];
+    const line = (px, py, qx, qy) => { let a = -(qy - py), b = qx - px; const n = Math.hypot(a, b) || 1; a /= n; b /= n; return [a, b, -(a * px + b * py)]; };
+    const lA = line(xL, -yB[0], xR, -yB[1]), lB = line(xL, yB[0], xR, yB[1]);
+    const H = { aboveA: [lA[0], lA[1], lA[2] - sw], belowA: [-lA[0], -lA[1], -lA[2] - sw], aboveB: [lB[0], lB[1], lB[2] - sw], belowB: [-lB[0], -lB[1], -lB[2] - sw] };
+    for (const [h1, h2] of [['aboveA', 'aboveB'], ['belowA', 'belowB'], ['aboveA', 'belowB'], ['belowA', 'aboveB']]) {
+      let poly = clip(clip(outline, ...H[h1]), ...H[h2]);
+      if (poly.length >= 3 && area(poly) > 1e-4) g.add(U.mesh(U.extrude(shapeOf(poly), tc + 0.002, 0.004), steel, 'box'));
+    }
+    // pin: a plain cylinder through the box, just proud of each face so its circular edge reads
+    const pin = new T.Mesh(new T.CylinderGeometry(o.pinR || 0.1, o.pinR || 0.1, TH + 0.02, 32), steel.clone()); pin.rotation.x = Math.PI / 2; pin.userData.part = 'box'; pin.userData.base = steel.color.getHex(); g.add(pin);
+    g.userData.part = 'box'; return g;
+  };
   U.mesh = (geo, mat, part) => { const m = new T.Mesh(geo, mat.clone()); m.userData.part = part; m.userData.base = m.material.color.getHex(); return m; };
   U.roundRect = (x, y, w, h, r) => { const s = new T.Shape(); s.moveTo(x + r, y); s.lineTo(x + w - r, y); s.quadraticCurveTo(x + w, y, x + w, y + r); s.lineTo(x + w, y + h - r); s.quadraticCurveTo(x + w, y + h, x + w - r, y + h); s.lineTo(x + r, y + h); s.quadraticCurveTo(x, y + h, x, y + h - r); s.lineTo(x, y + r); s.quadraticCurveTo(x, y, x + r, y); return s; };
   // closed smooth outline from control points

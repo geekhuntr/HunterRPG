@@ -31,7 +31,7 @@
       const zs = isB ? -1 : 1, g = new T.Group(), steel = U.steel(), cl = o.cl(isB), P = spaced(cl), xAt = s => P[Math.round(s * N)].x;
       const R = o.ring;
       g.add(U.mesh(U.extrude(U.ringShape(R.cx, R.cy, R.rx, R.ry, R.wall), 0.30, 0.05), steel, 'rings'));
-      const jog = x => zs * (0.08 * sm(-1.0, -0.6, x) * (1 - sm(0.6, 1.0, x)) + (o.zTip ? o.zTip(x) : 0));
+      const jog = x => zs * (0.02 * sm(-1.0, -0.6, x) * (1 - sm(0.6, 1.0, x)) + (o.zTip ? o.zTip(x) : 0));
       const bar = U.bar(cl, s => o.hw(xAt(s)), s => o.th(xAt(s)), jog, N, o.r || 0.07);
       for (const [part, keep] of [['shanks', x => x < 0.6], ['jaws', x => x >= 0.6]]) g.add(U.mesh(splitBar(bar, keep), steel, part));
       if (o.ratchet) { // ratchet boss beside the ring: half thickness (front half on A, back half on B), teeth on the overlapping edge
@@ -41,10 +41,7 @@
         const boss = U.extrude(new T.Shape(pts.map(p => new T.Vector2(p[0], p[1]))), 0.15, 0.02); boss.translate(0, 0, zs * 0.075);
         g.add(U.mesh(boss, steel, 'ratchet'));
       }
-      if (isB) { // box lock and flush domed rivets
-        g.add(U.mesh(U.extrude(U.roundRect(-0.55, -0.38, 1.1, 0.76, 0.12), 0.55, 0.06), steel, 'box'));
-        for (const s of [1, -1]) { const d = new T.Mesh(new T.SphereGeometry(0.12, 20, 10), steel.clone()); d.scale.z = 0.35; d.position.z = s * 0.275; d.userData.part = 'box'; d.userData.base = d.material.color.getHex(); g.add(d); }
-      }
+      if (isB) g.add(U.boxLock({ L: 1.25, W: 0.78, T: o.th(0) + 0.16, slant: 0.22, shankT: o.th(0), sw: o.hw(0) + 0.03, yAt: U.lerpY(cl) })); // box lock on this half
       const e = P[N], t = new T.Vector3().subVectors(P[N], P[N - 3]).normalize();
       if (o.extras) o.extras(g, { isB, zs, steel, end: new T.Vector3(e.x, e.y, jog(e.x)), tan: t });
       return g;

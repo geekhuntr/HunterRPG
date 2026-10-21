@@ -1859,6 +1859,36 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
   };
   // A dark recess on a surface (suction ports). Shown as a shallow dark disc, not a true cut-through hole.
   U.port = (r, at, normal) => { const m = new T.Mesh(new T.CylinderGeometry(r, r, 0.02, 24), new T.MeshStandardMaterial({ color: 0x07090b, roughness: 0.9, metalness: 0 })); const nn = new T.Vector3(...normal).normalize(); m.position.set(...at).addScaledVector(nn, -0.009); m.quaternion.setFromUnitVectors(new T.Vector3(0, 1, 0), nn); m.userData.part = 'ports'; m.userData.port = true; return m; };
+  // Box lock, the joint of a ring-handled instrument, built in half B's local frame around the pivot at the origin.
+  // The female shank widens into a flat box with slanted ends: two thin face plates (leaves) top and bottom, joined by side
+  // walls, with a channel between them that the other shank passes through (both shanks exit the channel at the box ends),
+  // and a small flush pin through the middle. o: L length, W width, T thickness, slant (x offset of the top edge vs bottom),
+  // shankT thickness of the shanks, sw half-width of the shanks at the box, m |slope| of the shanks through the pivot.
+  // piecewise-linear y(x) along a centerline given as [[x, y], ...] with increasing x
+  U.lerpY = cl => x => { if (x <= cl[0][0]) return cl[0][1]; for (let i = 1; i < cl.length; i++) if (x <= cl[i][0]) { const [x0, y0] = cl[i - 1], [x1, y1] = cl[i]; return y0 + ((y1 - y0) * (x - x0)) / ((x1 - x0) || 1e-9); } return cl[cl.length - 1][1]; };
+  U.boxLock = (o) => {
+    const L = o.L, W = o.W, TH = o.T, k = o.slant == null ? 0.22 : o.slant, tc = o.shankT + 0.03, tl = (TH - tc) / 2, m = o.m, sw = o.sw;
+    const outline = [[-L / 2 - k, -W / 2], [L / 2 - k, -W / 2], [L / 2 + k, W / 2], [-L / 2 + k, W / 2]];
+    const steel = U.steel(), g = new T.Group();
+    const shapeOf = pts => new T.Shape(pts.map(p => new T.Vector2(p[0], p[1])));
+    for (const s of [1, -1]) { const leaf = U.extrude(shapeOf(outline), tl, 0.02); leaf.translate(0, 0, s * (TH / 2 - tl / 2)); g.add(U.mesh(leaf, steel, 'box')); }
+    // side walls: the parts of the box outside both shank strips (y = +-m x +- sw), as four convex pieces
+    const clip = (poly, a, b, c) => { const out = []; for (let i = 0; i < poly.length; i++) { const P = poly[i], Q = poly[(i + 1) % poly.length], fp = a * P[0] + b * P[1] + c, fq = a * Q[0] + b * Q[1] + c; if (fp >= 0) out.push(P); if ((fp >= 0) !== (fq >= 0)) { const t = fp / (fp - fq); out.push([P[0] + t * (Q[0] - P[0]), P[1] + t * (Q[1] - P[1])]); } } return out; };
+    const area = poly => Math.abs(poly.reduce((a, P, i) => { const Q = poly[(i + 1) % poly.length]; return a + P[0] * Q[1] - Q[0] * P[1]; }, 0)) / 2;
+    // strip A = the other shank (mirror of this half's centerline), strip B = this shank; each is the band of half-width sw
+    // around the chord through the shank's positions at the two box ends (o.yAt(x) = this half's centerline y), else slope m
+    const xL = -L / 2 - k, xR = L / 2 + k, yB = o.yAt ? [o.yAt(xL), o.yAt(xR)] : [-m * xL, -m * xR];
+    const line = (px, py, qx, qy) => { let a = -(qy - py), b = qx - px; const n = Math.hypot(a, b) || 1; a /= n; b /= n; return [a, b, -(a * px + b * py)]; };
+    const lA = line(xL, -yB[0], xR, -yB[1]), lB = line(xL, yB[0], xR, yB[1]);
+    const H = { aboveA: [lA[0], lA[1], lA[2] - sw], belowA: [-lA[0], -lA[1], -lA[2] - sw], aboveB: [lB[0], lB[1], lB[2] - sw], belowB: [-lB[0], -lB[1], -lB[2] - sw] };
+    for (const [h1, h2] of [['aboveA', 'aboveB'], ['belowA', 'belowB'], ['aboveA', 'belowB'], ['belowA', 'aboveB']]) {
+      let poly = clip(clip(outline, ...H[h1]), ...H[h2]);
+      if (poly.length >= 3 && area(poly) > 1e-4) g.add(U.mesh(U.extrude(shapeOf(poly), tc + 0.002, 0.004), steel, 'box'));
+    }
+    // pin: a plain cylinder through the box, just proud of each face so its circular edge reads
+    const pin = new T.Mesh(new T.CylinderGeometry(o.pinR || 0.1, o.pinR || 0.1, TH + 0.02, 32), steel.clone()); pin.rotation.x = Math.PI / 2; pin.userData.part = 'box'; pin.userData.base = steel.color.getHex(); g.add(pin);
+    g.userData.part = 'box'; return g;
+  };
   U.mesh = (geo, mat, part) => { const m = new T.Mesh(geo, mat.clone()); m.userData.part = part; m.userData.base = m.material.color.getHex(); return m; };
   U.roundRect = (x, y, w, h, r) => { const s = new T.Shape(); s.moveTo(x + r, y); s.lineTo(x + w - r, y); s.quadraticCurveTo(x + w, y, x + w, y + r); s.lineTo(x + w, y + h - r); s.quadraticCurveTo(x + w, y + h, x + w - r, y + h); s.lineTo(x + r, y + h); s.quadraticCurveTo(x, y + h, x, y + h - r); s.lineTo(x, y + r); s.quadraticCurveTo(x, y, x + r, y); return s; };
   // closed smooth outline from control points
@@ -2042,7 +2072,7 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
       cl.push([-0.2 * bs, 0.12 * bs], [0.15 * bs, -0.06 * bs], [J0, -o.w0 / 2]);
       const xOf = s => xs0 + s * (J0 - xs0);
       const hw = s => { const x = xOf(s); return x < RING.cx + 1.3 ? hwX(RING.cx + 1.3) * (0.74 + 0.26 * clamp((x - xs0) / 0.85, 0, 1)) : x > -0.4 * bs ? Math.min(hwX(x), o.w0 / 2 + 0.03) : hwX(x); };
-      const jog = x => zs * 0.075 * U.smooth(-0.48 * bs, -0.3 * bs, x) * (1 - U.smooth(0.3 * bs, 0.46 * bs, x));
+      const jog = x => zs * 0.02 * U.smooth(-0.48 * bs, -0.3 * bs, x) * (1 - U.smooth(0.3 * bs, 0.46 * bs, x));
       g.add(U.mesh(outward(U.bar(cl, hw, shankT, jog, 300, 0.07)), steel, 'shanks'));
       // ratchet boss beside the ring: front half on A / back half on B (thinner than the shank), teeth along the inner edge
       const pitch = 0.26, depth = 0.09, yb = 0.0, bt = Math.min(0.12, shankT / 2 - 0.025);
@@ -2062,10 +2092,7 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
         if (!isB) { g.add(U.mesh(prong(sg, c + gap, hE), steel, 'tipteeth')); g.add(U.mesh(prong(sg, -hE, -c - gap), steel, 'tipteeth')); }
         else g.add(U.mesh(prong(sg, -c, c), steel, 'tipteeth'));
       }
-      if (isB) { // box lock (on this half) with a flush domed rivet head on each face
-        g.add(U.mesh(U.extrude(U.roundRect(-BOXX + 0.06, -BX.hy, 2 * BOXX - 0.12, 2 * BX.hy, 0.1), BX.t, 0.06), steel, 'box'));
-        for (const s of [1, -1]) { const d = new T.Mesh(new T.SphereGeometry(0.13 * bs, 20, 10), steel.clone()); d.scale.z = 0.32; d.position.z = (s * BX.t) / 2; d.userData.part = 'box'; d.userData.base = d.material.color.getHex(); g.add(d); }
-      }
+      if (isB) g.add(U.boxLock({ L: 2 * BOXX + 0.1, W: 2 * BX.hy, T: Math.min(BX.t, shankT + 0.17), slant: 0.2 * bs, shankT: shankT, sw: o.w0 / 2 + 0.05, yAt: U.lerpY(cl) })); // box lock on this half
       return g;
     }
 
@@ -2279,7 +2306,7 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
     const g = new T.Group(), steel = U.steel();
     g.add(U.mesh(U.extrude(U.ringShape(RING.cx, RING.cy, RING.rx, RING.ry, RING.wall), 0.30, 0.05), steel, 'rings'));
     // shank + jaw in one swept bar; z-joggle hidden inside the box lock
-    const jog = x => zs * 0.08 * U.smooth(-1.0, -0.6, x) * (1 - U.smooth(0.6, 1.0, x));
+    const jog = x => zs * 0.02 * U.smooth(-1.0, -0.6, x) * (1 - U.smooth(0.6, 1.0, x));
     const bar = U.bar(CL, hw, 0.28, jog, N, 0.07);
     // one sweep, two part tags: distal to the box lock it is the jaw (shared vertices keep the seam smooth)
     for (const [part, keep] of [['shanks', x => x < 0.6], ['jaws', x => x >= 0.6]]) g.add(U.mesh(splitBar(bar, keep), steel, part));
@@ -2298,10 +2325,7 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
     // interlocking teeth: 4 on half A, 5 on half B (offset half a pitch so they mesh)
     const c = isB ? [-2, -1, 0, 1, 2].map(i => i * PITCH) : [-1.5, -0.5, 0.5, 1.5].map(i => i * PITCH);
     const tm = U.mesh(teeth(c, isB ? 0 : EDGE), U.steel({ roughness: 0.32 }), 'teeth'); tm.geometry.computeVertexNormals(); g.add(tm);
-    if (isB) { // box lock and domed rivets
-      g.add(U.mesh(U.extrude(U.roundRect(-0.55, -0.38, 1.1, 0.76, 0.12), 0.55, 0.06), steel, 'box'));
-      for (const s of [1, -1]) { const d = new T.Mesh(new T.SphereGeometry(0.12, 20, 10), steel.clone()); d.scale.z = 0.35; d.position.z = s * 0.275; d.userData.part = 'box'; g.add(d); }
-    }
+    if (isB) g.add(U.boxLock({ L: 1.25, W: 0.78, T: 0.44, slant: 0.22, shankT: 0.28, sw: 0.22, yAt: U.lerpY(CL) })); // box lock on this half
     return g;
   }
 
@@ -2362,7 +2386,7 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
     // stays close to its partner distal to the box, then becomes the jaw. Small z-joggle hidden mostly inside the box.
     const cl = [[-7.55, 0.50], [-6.9, 0.42], [-5.6, 0.40], [-3.0, 0.30], [-1.0, 0.20], [0, 0], [0.9, -0.17], [2.0, -0.19], [2.55, -0.24], [3.05, -0.30]];
     const hw = s => (s < 0.62 ? 0.27 - 0.08 * U.smooth(0.45, 0.62, s) : 0.19 - 0.11 * U.smooth(0.9, 1, s));
-    const jog = x => zs * 0.08 * U.smooth(-1.0, -0.6, x) * (1 - U.smooth(0.6, 1.0, x));
+    const jog = x => zs * 0.02 * U.smooth(-1.0, -0.6, x) * (1 - U.smooth(0.6, 1.0, x));
     g.add(U.mesh(U.bar(cl, hw, 0.30, jog, 220, 0.07), steel, 'shanks'));
     // ratchet boss next to the ring: half thickness, front half on A / back half on B; small teeth on the overlapping edge
     const x0 = -6.95, x1 = -5.55, pitch = 0.2, depth = 0.1;
@@ -2379,10 +2403,7 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
     g.add(U.mesh(U.tube(loop, 0.08, true, 260), steel, 'jaws'));
     // tip bar: flat ~9 mm wide grasping face whose inner face sits on y = 0 when closed (smooth, atraumatic)
     g.add(U.mesh(U.plateXZ(U.roundRect(6.84, -0.46, 0.28, 0.92, 0.08), 0.18, -0.09, 0.03), steel, 'jaws'));
-    if (isB) { // box lock (slotted block on this half) and a flush domed rivet on each face
-      g.add(U.mesh(U.extrude(U.roundRect(-0.55, -0.38, 1.1, 0.76, 0.12), 0.55, 0.06), steel, 'box'));
-      for (const s of [1, -1]) { const d = new T.Mesh(new T.SphereGeometry(0.12, 20, 10), steel.clone()); d.scale.z = 0.35; d.position.z = s * 0.275; d.userData.part = 'box'; g.add(d); }
-    }
+    if (isB) g.add(U.boxLock({ L: 1.25, W: 0.78, T: 0.46, slant: 0.22, shankT: 0.30, sw: 0.22, yAt: U.lerpY(cl) })); // box lock on this half
     return g;
   }
 
@@ -2428,7 +2449,7 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
    Approximations: jaw lengths/widths/thicknesses, curve and bend radii, serration/crosshatch pitch, tooth size, ring/ratchet/box sizes. */
 (function (root) {
   const ST3D = root.ST3D, H = ST3D.hemostat;
-  const common = 'Procedural educational model, not a scan; not compared against a photograph (photo hosts are blocked in the build environment). Box lock is a solid block with rivet heads (no visible slot); the ratchet is two half-thickness toothed plates. Serrations are slightly exaggerated so they read at screen size.';
+  const common = 'Procedural educational model, not a scan; not compared against a photograph (photo hosts are blocked in the build environment). Box lock is a slanted box with face plates, a channel for the other shank and a flush pin; the ratchet is two half-thickness toothed plates. Serrations are slightly exaggerated so they read at screen size.';
 
   ST3D.models.mosquito = H({
     id: 'mosquito', recordId: 'mosquito', reviewed: true, L: 2.35, kappa: s => (s > 0.05 ? 0.17 : 0),
@@ -2490,7 +2511,7 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
     id: 'crile', recordId: 'crile', reviewed: true,
     tipX: 3.85, serrFrom: 0.6, pitch: 0.07, depth: 0.034, chamfer: 0.015, curveK: 0.05,
     w0: 0.25, w1: 0.1, h0: 0.155, h1: 0.09, shankW: 0.94, shankT: 0.29,
-    note: 'Procedural educational model of a CURVED Crile (a straight pattern also exists), not a scan. Sourced from text descriptions (MSF and Red Cross catalogues, catalog listings, study guides): about 14 cm (5½ in), ratchet, box lock, transverse serrations along the entire jaw. Approximations: jaw length (~3.3 cm beyond the box), jaw width/thickness (drawn slightly slimmer than the Kelly), the amount of curve, serration pitch (0.7 mm) and depth, ring, ratchet and box-lock sizes; the box lock is a solid block with rivet heads (no visible slot); serrations are exaggerated slightly so they read at screen size. Not compared against a photograph because photo hosts are blocked in the build environment.',
+    note: 'Procedural educational model of a CURVED Crile (a straight pattern also exists), not a scan. Sourced from text descriptions (MSF and Red Cross catalogues, catalog listings, study guides): about 14 cm (5½ in), ratchet, box lock, transverse serrations along the entire jaw. Approximations: jaw length (~3.3 cm beyond the box), jaw width/thickness (drawn slightly slimmer than the Kelly), the amount of curve, serration pitch (0.7 mm) and depth, ring, ratchet and box-lock sizes; the box lock is a slanted box with face plates, a channel for the other shank and a flush pin; serrations are exaggerated slightly so they read at screen size. Not compared against a photograph because photo hosts are blocked in the build environment.',
     dims: 'About 14 cm (5½ in) overall; curved jaws ~3.3 cm long, ~5 mm wide (closed) at the base tapering to ~2 mm at the tip; serrations (≈0.7 mm pitch) along the full jaw length. Proportions are approximations.'
   });
 })(window);
@@ -2563,7 +2584,7 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
     function half(isB) {
       const g = new T.Group(), steel = U.steel(), zs = isB ? -1 : 1, R = o.ring;
       const ring = U.mesh(U.extrude(U.ringShape(R.cx, R.cy, R.rx, R.ry, R.wall), R.th, 0.06), steel, 'rings'); ring.position.z = zf(R.cx); g.add(ring);
-      const jog = x => zs * 0.085 * sm(-1.4, -0.8, x) * (1 - sm(0.8, 1.4, x)) + zf(x);
+      const jog = x => zs * 0.02 * sm(-1.4, -0.8, x) * (1 - sm(0.8, 1.4, x)) + zf(x);
       // one continuous bar split at the pivot (seam hidden inside the box lock): shank part and jaw part are separate highlightable meshes
       const cl = o.cl(isB), i0 = cl.findIndex(q => q[0] === 0 && q[1] === 0), P = cl.slice(0, i0 + 1), D = cl.slice(i0), Lp = lenOf(P), Ld = lenOf(D), Lt = Lp + Ld;
       g.add(U.mesh(U.bar(P, t => o.hw((t * Lp) / Lt), o.th, jog, 220, 0.07), steel, 'shanks'));
@@ -2574,8 +2595,8 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
       pts.push([x0, 0.25]);
       const rg = U.extrude(new T.Shape(pts.map(p => new T.Vector2(p[0], p[1]))), o.th * 0.5, 0.02); rg.translate(0, 0, zs * o.th * 0.25 + zf(x0)); g.add(U.mesh(rg, steel, 'ratchet'));
       o.jaw(g, steel, isB, jog);
-      if (isB) { const b = o.box, k = b.slant || 0, bs = new T.Shape([[-b.l / 2 - k, -b.h / 2], [b.l / 2 - k, -b.h / 2], [b.l / 2 + k, b.h / 2], [-b.l / 2 + k, b.h / 2]].map(p => new T.Vector2(p[0], p[1]))), bx = U.mesh(U.extrude(bs, b.t, 0.06), steel, 'box'); bx.position.z = zf(0); g.add(bx);
-        for (const s of [1, -1]) g.add(rivet(0, 0, zf(0) + s * b.t / 2, 0.13, steel, 'box')); }
+      if (isB) { const b = o.box;
+        const bx = U.boxLock({ L: b.l, W: b.h, T: b.t, slant: b.slant || 0, shankT: o.th, sw: o.hw(Lp / Lt) + 0.03, yAt: U.lerpY(cl) }); bx.position.z = zf(0); g.add(bx); }
       return g;
     }
     return function build() {
@@ -2904,7 +2925,7 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
       const zs = isB ? -1 : 1, g = new T.Group(), steel = U.steel(), cl = o.cl(isB), P = spaced(cl), xAt = s => P[Math.round(s * N)].x;
       const R = o.ring;
       g.add(U.mesh(U.extrude(U.ringShape(R.cx, R.cy, R.rx, R.ry, R.wall), 0.30, 0.05), steel, 'rings'));
-      const jog = x => zs * (0.08 * sm(-1.0, -0.6, x) * (1 - sm(0.6, 1.0, x)) + (o.zTip ? o.zTip(x) : 0));
+      const jog = x => zs * (0.02 * sm(-1.0, -0.6, x) * (1 - sm(0.6, 1.0, x)) + (o.zTip ? o.zTip(x) : 0));
       const bar = U.bar(cl, s => o.hw(xAt(s)), s => o.th(xAt(s)), jog, N, o.r || 0.07);
       for (const [part, keep] of [['shanks', x => x < 0.6], ['jaws', x => x >= 0.6]]) g.add(U.mesh(splitBar(bar, keep), steel, part));
       if (o.ratchet) { // ratchet boss beside the ring: half thickness (front half on A, back half on B), teeth on the overlapping edge
@@ -2914,10 +2935,7 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
         const boss = U.extrude(new T.Shape(pts.map(p => new T.Vector2(p[0], p[1]))), 0.15, 0.02); boss.translate(0, 0, zs * 0.075);
         g.add(U.mesh(boss, steel, 'ratchet'));
       }
-      if (isB) { // box lock and flush domed rivets
-        g.add(U.mesh(U.extrude(U.roundRect(-0.55, -0.38, 1.1, 0.76, 0.12), 0.55, 0.06), steel, 'box'));
-        for (const s of [1, -1]) { const d = new T.Mesh(new T.SphereGeometry(0.12, 20, 10), steel.clone()); d.scale.z = 0.35; d.position.z = s * 0.275; d.userData.part = 'box'; d.userData.base = d.material.color.getHex(); g.add(d); }
-      }
+      if (isB) g.add(U.boxLock({ L: 1.25, W: 0.78, T: o.th(0) + 0.16, slant: 0.22, shankT: o.th(0), sw: o.hw(0) + 0.03, yAt: U.lerpY(cl) })); // box lock on this half
       const e = P[N], t = new T.Vector3().subVectors(P[N], P[N - 3]).normalize();
       if (o.extras) o.extras(g, { isB, zs, steel, end: new T.Vector3(e.x, e.y, jog(e.x)), tan: t });
       return g;
@@ -3109,7 +3127,7 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
     id: 'kelly', recordId: 'kelly', reviewed: true,
     tipX: 3.85, serrFrom: 1.85, pitch: 0.075, depth: 0.036, chamfer: 0.015, curveK: 0.05,
     w0: 0.28, w1: 0.115, h0: 0.17, h1: 0.1, shankW: 1.0, shankT: 0.31,
-    note: 'Procedural educational model of a CURVED Kelly (a straight pattern also exists), not a scan. Sourced from text descriptions (study guides, catalog listings): about 14 cm (5½ in), ratchet, box lock, transverse serrations on the distal half to two-thirds of the jaw only (modeled at ~55%), proximal part smooth. Approximations: jaw length (~3.3 cm beyond the box), jaw width/thickness, the amount of curve, serration pitch (0.75 mm) and depth, ring, ratchet and box-lock sizes; the box lock is a solid block with rivet heads (no visible slot); serrations are exaggerated slightly so they read at screen size. Not compared against a photograph because photo hosts are blocked in the build environment.',
+    note: 'Procedural educational model of a CURVED Kelly (a straight pattern also exists), not a scan. Sourced from text descriptions (study guides, catalog listings): about 14 cm (5½ in), ratchet, box lock, transverse serrations on the distal half to two-thirds of the jaw only (modeled at ~55%), proximal part smooth. Approximations: jaw length (~3.3 cm beyond the box), jaw width/thickness, the amount of curve, serration pitch (0.75 mm) and depth, ring, ratchet and box-lock sizes; the box lock is a slanted box with face plates, a channel for the other shank and a flush pin; serrations are exaggerated slightly so they read at screen size. Not compared against a photograph because photo hosts are blocked in the build environment.',
     dims: 'About 14 cm (5½ in) overall; curved jaws ~3.3 cm long, ~5.6 mm wide (closed) at the base tapering to ~2.3 mm at the tip; serrations (≈0.75 mm pitch) on the distal ~2 cm (about 55% of the jaw) only. Proportions are approximations.'
   });
 })(window);

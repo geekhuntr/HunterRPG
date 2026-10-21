@@ -51,7 +51,7 @@
     const g = new T.Group(), steel = U.steel();
     g.add(U.mesh(U.extrude(U.ringShape(RING.cx, RING.cy, RING.rx, RING.ry, RING.wall), 0.30, 0.05), steel, 'rings'));
     // shank + jaw in one swept bar; z-joggle hidden inside the box lock
-    const jog = x => zs * 0.08 * U.smooth(-1.0, -0.6, x) * (1 - U.smooth(0.6, 1.0, x));
+    const jog = x => zs * 0.02 * U.smooth(-1.0, -0.6, x) * (1 - U.smooth(0.6, 1.0, x));
     const bar = U.bar(CL, hw, 0.28, jog, N, 0.07);
     // one sweep, two part tags: distal to the box lock it is the jaw (shared vertices keep the seam smooth)
     for (const [part, keep] of [['shanks', x => x < 0.6], ['jaws', x => x >= 0.6]]) g.add(U.mesh(splitBar(bar, keep), steel, part));
@@ -70,10 +70,7 @@
     // interlocking teeth: 4 on half A, 5 on half B (offset half a pitch so they mesh)
     const c = isB ? [-2, -1, 0, 1, 2].map(i => i * PITCH) : [-1.5, -0.5, 0.5, 1.5].map(i => i * PITCH);
     const tm = U.mesh(teeth(c, isB ? 0 : EDGE), U.steel({ roughness: 0.32 }), 'teeth'); tm.geometry.computeVertexNormals(); g.add(tm);
-    if (isB) { // box lock and domed rivets
-      g.add(U.mesh(U.extrude(U.roundRect(-0.55, -0.38, 1.1, 0.76, 0.12), 0.55, 0.06), steel, 'box'));
-      for (const s of [1, -1]) { const d = new T.Mesh(new T.SphereGeometry(0.12, 20, 10), steel.clone()); d.scale.z = 0.35; d.position.z = s * 0.275; d.userData.part = 'box'; g.add(d); }
-    }
+    if (isB) g.add(U.boxLock({ L: 1.25, W: 0.78, T: 0.44, slant: 0.22, shankT: 0.28, sw: 0.22, yAt: U.lerpY(CL) })); // box lock on this half
     return g;
   }
 

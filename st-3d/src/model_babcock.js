@@ -24,7 +24,7 @@
     // stays close to its partner distal to the box, then becomes the jaw. Small z-joggle hidden mostly inside the box.
     const cl = [[-7.55, 0.50], [-6.9, 0.42], [-5.6, 0.40], [-3.0, 0.30], [-1.0, 0.20], [0, 0], [0.9, -0.17], [2.0, -0.19], [2.55, -0.24], [3.05, -0.30]];
     const hw = s => (s < 0.62 ? 0.27 - 0.08 * U.smooth(0.45, 0.62, s) : 0.19 - 0.11 * U.smooth(0.9, 1, s));
-    const jog = x => zs * 0.08 * U.smooth(-1.0, -0.6, x) * (1 - U.smooth(0.6, 1.0, x));
+    const jog = x => zs * 0.02 * U.smooth(-1.0, -0.6, x) * (1 - U.smooth(0.6, 1.0, x));
     g.add(U.mesh(U.bar(cl, hw, 0.30, jog, 220, 0.07), steel, 'shanks'));
     // ratchet boss next to the ring: half thickness, front half on A / back half on B; small teeth on the overlapping edge
     const x0 = -6.95, x1 = -5.55, pitch = 0.2, depth = 0.1;
@@ -41,10 +41,7 @@
     g.add(U.mesh(U.tube(loop, 0.08, true, 260), steel, 'jaws'));
     // tip bar: flat ~9 mm wide grasping face whose inner face sits on y = 0 when closed (smooth, atraumatic)
     g.add(U.mesh(U.plateXZ(U.roundRect(6.84, -0.46, 0.28, 0.92, 0.08), 0.18, -0.09, 0.03), steel, 'jaws'));
-    if (isB) { // box lock (slotted block on this half) and a flush domed rivet on each face
-      g.add(U.mesh(U.extrude(U.roundRect(-0.55, -0.38, 1.1, 0.76, 0.12), 0.55, 0.06), steel, 'box'));
-      for (const s of [1, -1]) { const d = new T.Mesh(new T.SphereGeometry(0.12, 20, 10), steel.clone()); d.scale.z = 0.35; d.position.z = s * 0.275; d.userData.part = 'box'; g.add(d); }
-    }
+    if (isB) g.add(U.boxLock({ L: 1.25, W: 0.78, T: 0.46, slant: 0.22, shankT: 0.30, sw: 0.22, yAt: U.lerpY(cl) })); // box lock on this half
     return g;
   }
 

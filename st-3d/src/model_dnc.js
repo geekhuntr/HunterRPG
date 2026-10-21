@@ -64,7 +64,7 @@
     function half(isB) {
       const g = new T.Group(), steel = U.steel(), zs = isB ? -1 : 1, R = o.ring;
       const ring = U.mesh(U.extrude(U.ringShape(R.cx, R.cy, R.rx, R.ry, R.wall), R.th, 0.06), steel, 'rings'); ring.position.z = zf(R.cx); g.add(ring);
-      const jog = x => zs * 0.085 * sm(-1.4, -0.8, x) * (1 - sm(0.8, 1.4, x)) + zf(x);
+      const jog = x => zs * 0.02 * sm(-1.4, -0.8, x) * (1 - sm(0.8, 1.4, x)) + zf(x);
       // one continuous bar split at the pivot (seam hidden inside the box lock): shank part and jaw part are separate highlightable meshes
       const cl = o.cl(isB), i0 = cl.findIndex(q => q[0] === 0 && q[1] === 0), P = cl.slice(0, i0 + 1), D = cl.slice(i0), Lp = lenOf(P), Ld = lenOf(D), Lt = Lp + Ld;
       g.add(U.mesh(U.bar(P, t => o.hw((t * Lp) / Lt), o.th, jog, 220, 0.07), steel, 'shanks'));
@@ -75,8 +75,8 @@
       pts.push([x0, 0.25]);
       const rg = U.extrude(new T.Shape(pts.map(p => new T.Vector2(p[0], p[1]))), o.th * 0.5, 0.02); rg.translate(0, 0, zs * o.th * 0.25 + zf(x0)); g.add(U.mesh(rg, steel, 'ratchet'));
       o.jaw(g, steel, isB, jog);
-      if (isB) { const b = o.box, k = b.slant || 0, bs = new T.Shape([[-b.l / 2 - k, -b.h / 2], [b.l / 2 - k, -b.h / 2], [b.l / 2 + k, b.h / 2], [-b.l / 2 + k, b.h / 2]].map(p => new T.Vector2(p[0], p[1]))), bx = U.mesh(U.extrude(bs, b.t, 0.06), steel, 'box'); bx.position.z = zf(0); g.add(bx);
-        for (const s of [1, -1]) g.add(rivet(0, 0, zf(0) + s * b.t / 2, 0.13, steel, 'box')); }
+      if (isB) { const b = o.box;
+        const bx = U.boxLock({ L: b.l, W: b.h, T: b.t, slant: b.slant || 0, shankT: o.th, sw: o.hw(Lp / Lt) + 0.03, yAt: U.lerpY(cl) }); bx.position.z = zf(0); g.add(bx); }
       return g;
     }
     return function build() {

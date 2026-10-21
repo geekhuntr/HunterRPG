@@ -172,7 +172,7 @@
       cl.push([-0.2 * bs, 0.12 * bs], [0.15 * bs, -0.06 * bs], [J0, -o.w0 / 2]);
       const xOf = s => xs0 + s * (J0 - xs0);
       const hw = s => { const x = xOf(s); return x < RING.cx + 1.3 ? hwX(RING.cx + 1.3) * (0.74 + 0.26 * clamp((x - xs0) / 0.85, 0, 1)) : x > -0.4 * bs ? Math.min(hwX(x), o.w0 / 2 + 0.03) : hwX(x); };
-      const jog = x => zs * 0.075 * U.smooth(-0.48 * bs, -0.3 * bs, x) * (1 - U.smooth(0.3 * bs, 0.46 * bs, x));
+      const jog = x => zs * 0.02 * U.smooth(-0.48 * bs, -0.3 * bs, x) * (1 - U.smooth(0.3 * bs, 0.46 * bs, x));
       g.add(U.mesh(outward(U.bar(cl, hw, shankT, jog, 300, 0.07)), steel, 'shanks'));
       // ratchet boss beside the ring: front half on A / back half on B (thinner than the shank), teeth along the inner edge
       const pitch = 0.26, depth = 0.09, yb = 0.0, bt = Math.min(0.12, shankT / 2 - 0.025);
@@ -192,10 +192,7 @@
         if (!isB) { g.add(U.mesh(prong(sg, c + gap, hE), steel, 'tipteeth')); g.add(U.mesh(prong(sg, -hE, -c - gap), steel, 'tipteeth')); }
         else g.add(U.mesh(prong(sg, -c, c), steel, 'tipteeth'));
       }
-      if (isB) { // box lock (on this half) with a flush domed rivet head on each face
-        g.add(U.mesh(U.extrude(U.roundRect(-BOXX + 0.06, -BX.hy, 2 * BOXX - 0.12, 2 * BX.hy, 0.1), BX.t, 0.06), steel, 'box'));
-        for (const s of [1, -1]) { const d = new T.Mesh(new T.SphereGeometry(0.13 * bs, 20, 10), steel.clone()); d.scale.z = 0.32; d.position.z = (s * BX.t) / 2; d.userData.part = 'box'; d.userData.base = d.material.color.getHex(); g.add(d); }
-      }
+      if (isB) g.add(U.boxLock({ L: 2 * BOXX + 0.1, W: 2 * BX.hy, T: Math.min(BX.t, shankT + 0.17), slant: 0.2 * bs, shankT: shankT, sw: o.w0 / 2 + 0.05, yAt: U.lerpY(cl) })); // box lock on this half
       return g;
     }
 

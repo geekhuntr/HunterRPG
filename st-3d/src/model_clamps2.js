@@ -9,7 +9,7 @@
    Approximations: jaw lengths/widths/thicknesses, curve and bend radii, serration/crosshatch pitch, tooth size, ring/ratchet/box sizes. */
 (function (root) {
   const ST3D = root.ST3D, H = ST3D.hemostat;
-  const common = 'Procedural educational model, not a scan; not compared against a photograph (photo hosts are blocked in the build environment). Box lock is a solid block with rivet heads (no visible slot); the ratchet is two half-thickness toothed plates. Serrations are slightly exaggerated so they read at screen size.';
+  const common = 'Procedural educational model, not a scan; not compared against a photograph (photo hosts are blocked in the build environment). Box lock is a slanted box with face plates, a channel for the other shank and a flush pin; the ratchet is two half-thickness toothed plates. Serrations are slightly exaggerated so they read at screen size.';
 
   ST3D.models.mosquito = H({
     id: 'mosquito', recordId: 'mosquito', reviewed: true, L: 2.35, kappa: s => (s > 0.05 ? 0.17 : 0),
