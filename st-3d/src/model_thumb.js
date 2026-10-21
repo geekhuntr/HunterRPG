@@ -81,6 +81,19 @@
     const caps = cg.toNonIndexed(); caps.computeVertexNormals();
     return { side: geo, caps };
   }
+  // straight flat bar along +X (same section as U.bar) sampled at the given x stations, with the corner radius
+  // shrinking with the section so a tip can taper to a closed, rounded point
+  function flatBar(xs, hwX, thX, zX, rMax) {
+    const arc = 4, prof = [], pos = [], idx = [];
+    for (const [sx, sy, k] of [[1, 1, 0], [-1, 1, 1], [-1, -1, 2], [1, -1, 3]]) for (let j = 0; j <= arc; j++) { const t = (k * Math.PI) / 2 + (j / arc) * (Math.PI / 2); prof.push([sx, sy, Math.cos(t), Math.sin(t)]); }
+    const m = prof.length, n = xs.length - 1;
+    for (const x of xs) { const hw = hwX(x), b = thX(x) / 2, r = Math.min(rMax, hw * 0.98, b * 0.98), z0 = zX(x);
+      for (const [sx, sy, ca, sa] of prof) pos.push(x, sx * (hw - r) + r * ca, z0 + sy * (b - r) + r * sa); }
+    for (let i = 0; i < n; i++) for (let j = 0; j < m; j++) { const a = i * m + j, b2 = i * m + ((j + 1) % m), c = (i + 1) * m + j, d = (i + 1) * m + ((j + 1) % m); idx.push(a, b2, c, b2, d, c); }
+    for (const end of [0, n]) { const ci = pos.length / 3; let cx = 0, cy = 0, cz = 0; for (let j = 0; j < m; j++) { cx += pos[(end * m + j) * 3] / m; cy += pos[(end * m + j) * 3 + 1] / m; cz += pos[(end * m + j) * 3 + 2] / m; } pos.push(cx, cy, cz); for (let j = 0; j < m; j++) { const a = end * m + j, b2 = end * m + ((j + 1) % m); end ? idx.push(ci, a, b2) : idx.push(ci, b2, a); } }
+    const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals(); return g;
+  }
+  const stations = (x0, x1, xf, coarse = 0.03, fine = 0.004) => { const xs = []; for (let x = x0; x < x1 - 1e-9;) { xs.push(x); x += x < xf ? coarse : fine; } xs.push(x1); return xs; };
   const straightBar = (x0, x1, hwX, thX, zX, n, r) => U.bar([[x0, 0], [x1, 0]], s => hwX(x0 + s * (x1 - x0)), s => thX(x0 + s * (x1 - x0)), zX, n, r);
 
   /* ------------------------------------------------------------------ thumb forceps factory
@@ -91,7 +104,7 @@
     const L = o.L, hwS = mono(o.hw), R = 0.035;
     const hwX = x => hwS(x / L);
     const thB = x => o.th[0] + (o.th[1] - o.th[0]) * U.smooth(0.4 * L, 0.92 * L, x);
-    const thX = o.tip === 'teeth' ? thB : x => thB(x) * (1 - 0.15 * U.smooth(L - 0.12, L, x));
+    const thX = thB;
     const h = o.tip === 'teeth' && !o.serr ? 0.01 : 0.014; // inner face height above z = 0 at the closed tip
     const xp = o.J - 0.05, xm = o.peak * L, xe = L - o.P;
     const gapX = x => x <= xp ? 0 : x < xm ? o.gap * Math.sin(Math.PI / 2 * (x - xp) / (xm - xp)) : x < xe ? o.gap * 0.5 * (1 + Math.cos(Math.PI * (x - xm) / (xe - xm))) : 0;
@@ -102,20 +115,20 @@
     const rTip = hwX(L);
     const hwT = x => { // rounded tip in face view for the untoothed tips
       if (a || x < L - rTip) return hwX(x);
-      const u = (x - (L - rTip)) / rTip; return Math.max(R + 0.003, hwX(x) * (0.5 + 0.5 * Math.sqrt(Math.max(0, 1 - u * u))));
+      const u = (x - (L - rTip)) / rTip; return Math.max(0.004, hwX(x) * Math.sqrt(Math.max(0, 1 - u * u)));
     };
+    // in side view the untoothed tip rounds off on the outer face (inner face stays flat)
+    const rT = thX(L) * 0.9;
+    const thT = x => { if (a || x < L - rT) return thX(x); const u = (x - (L - rT)) / rT; return Math.max(0.004, thX(x) * Math.sqrt(Math.max(0, 1 - u * u))); };
+    const zcT = x => zi(x) + thT(x) / 2;
 
     function blade(isB) {
       const g = new T.Group(), steel = U.steel();
       // one swept bar (smooth normals across the seam), split into the blade and the tip part
-      const bar = capsApart(straightBar(o.J - 0.35, xEnd, hwT, thX, zc, Math.round((xEnd - o.J) / 0.02), R));
+      const bar = capsApart(flatBar(stations(o.J - 0.35, xEnd, xEnd - 0.25), hwT, thT, zcT, R));
       g.add(U.mesh(splitBar(bar.side, x => x < xe), steel, 'blades'));
       g.add(U.mesh(splitBar(bar.side, x => x >= xe), steel, 'tips'));
       g.add(U.mesh(bar.caps, steel, 'tips'));
-      if (!a) { // close the rounded tip with a small ellipsoid so the end reads as a smooth bead, not a flat cut
-        const e = new T.SphereGeometry(1, 24, 16); e.scale(Math.min(0.06, hwT(L) * 0.75), hwT(L), thX(L) / 2); e.translate(L - 0.002, 0, zc(L));
-        g.add(U.mesh(e, steel, 'tips'));
-      }
       // transverse grip ribs on the outer face
       const rib = new Acc(), x0 = o.grip[0] * L, x1 = o.grip[1] * L, pitch = 0.11, w = 0.062, hgt = 0.02;
       for (let x = x0; x <= x1; x += pitch) {
@@ -175,7 +188,7 @@
       oblique: { pos: [L / 2 + 7, 13, 22], tgt: [L / 2, 0, 0] },
       tip: { pos: [L - 0.55, 2.5, 0.02], tgt: [L - 0.55, 0, 0] },
       jawsOblique: { pos: [L + 1.6, 1.25, 1.5], tgt: [L - 0.3, 0, 0] },
-      grip: { pos: [gm + 1.2, 2.4, 4.4], tgt: [gm, 0, 0.4] },
+      grip: { pos: [gm + 1.8, 3.2, 6.2], tgt: [gm, 0, 0.3] },
       joint: { pos: [o.J + 2.2, 2.6, 3.8], tgt: [o.J * 0.6, 0, 0] }
     };
     return { build, views };
@@ -241,8 +254,8 @@
     grp.add(U.mesh(U.extrude(fs, TF, 0.025), steel, 'fitting'));
     // raised central rail on each face with an undercut groove along each side (the blade's slot rides in the grooves)
     const rail = new Acc(), zf = TF / 2, xa = XS - 0.03, xb = XT - 0.3;
-    prismY(rail, [[xa, zf - 0.012], [xb, zf - 0.012], [xb, zf + 0.026], [xa, zf + 0.026]], -0.045, 0.045);
-    prismY(rail, [[xa, zf + 0.026], [xb - 0.03, zf + 0.026], [xb - 0.1, zf + 0.056], [xa, zf + 0.056]], -0.088, 0.088);
+    prismY(rail, [[xa, zf - 0.012], [xb - 0.04, zf - 0.012], [xb - 0.04, zf + 0.032], [xa, zf + 0.032]], -0.05, 0.05);
+    prismY(rail, [[xa, zf + 0.032], [xb - 0.03, zf + 0.032], [xb - 0.11, zf + 0.066], [xa, zf + 0.066]], -0.1, 0.1);
     // knurled grip band (small pyramids) on both faces
     const kn = new Acc(), p = 0.085, z0 = TH / 2 - 0.004, z1 = TH / 2 + 0.026;
     for (let x = -0.6; x <= 2.2; x += p) for (let y = -0.34; y <= 0.341; y += p) {

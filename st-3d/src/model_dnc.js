@@ -71,7 +71,7 @@
       pts.push([x0, 0.25]);
       const rg = U.extrude(new T.Shape(pts.map(p => new T.Vector2(p[0], p[1]))), o.th * 0.5, 0.02); rg.translate(0, 0, zs * o.th * 0.25 + zf(x0)); g.add(U.mesh(rg, steel, 'ratchet'));
       o.jaw(g, steel, isB, jog);
-      if (isB) { const b = o.box, bx = U.mesh(U.extrude(U.roundRect(-b.l / 2, -b.h / 2, b.l, b.h, 0.12), b.t, 0.06), steel, 'box'); bx.position.z = zf(0); g.add(bx);
+      if (isB) { const b = o.box, k = b.slant || 0, bs = new T.Shape([[-b.l / 2 - k, -b.h / 2], [b.l / 2 - k, -b.h / 2], [b.l / 2 + k, b.h / 2], [-b.l / 2 + k, b.h / 2]].map(p => new T.Vector2(p[0], p[1]))), bx = U.mesh(U.extrude(bs, b.t, 0.06), steel, 'box'); bx.position.z = zf(0); g.add(bx);
         for (const s of [1, -1]) g.add(rivet(0, 0, zf(0) + s * b.t / 2, 0.13, steel, 'box')); }
       return g;
     }
@@ -84,53 +84,51 @@
     };
   }
   const FPARTS = [['rings', 'Finger rings'], ['ratchet', 'Ratchet'], ['shanks', 'Shanks'], ['box', 'Box lock'], ['jaws', 'Jaws / working end']];
-  const ringAttach = R => [R.cx + R.rx * 0.52, R.cy - R.ry * 0.74];
+  // neck from the ring's distal-inner quadrant straight down to the shank line (as on the tray photo), ratchet at the junction
+  const neck = (R, yr) => [[R.cx + R.rx * 0.74, R.cy - R.ry * 0.6], [R.cx + R.rx * 0.93, yr + 0.38], [R.cx + R.rx * 1.12, yr + 0.02], [R.cx + R.rx * 1.6, yr - 0.03]];
 
   // ---------------- Jacobs tenaculum (vulsellum): short, narrow slotted jaws ending in 2 x 2 incurved hooks ----------------
-  const JAC = { ring: { cx: -13.5, cy: 2.85, rx: 1.35, ry: 1.25, wall: 0.3, th: 0.32 }, th: 0.32, ratchet: { x0: -11.6, x1: -10.5, y: 0.62 }, box: { l: 1.3, h: 0.66, t: 0.62 }, ang: 0.07, center: [-3.4, 0, 0], size: 21.6 };
-  JAC.cl = () => { const a = ringAttach(JAC.ring); return [a, [-12.5, 1.25], [-11.8, 0.75], [-9, 0.52], [-5, 0.28], [-2, 0.09], [0, 0], [0.8, -0.13], [1.5, -0.27], [2.5, -0.3], [6.2, -0.3], [6.5, -0.29]]; };
-  JAC.hw = s => (s < 0.62 ? 0.28 - 0.1 * sm(0.0, 0.62, s) : 0.18 - 0.05 * sm(0.66, 0.74, s));
+  const JAC = { ring: { cx: -13.4, cy: 2.6, rx: 1.27, ry: 1.2, wall: 0.29, th: 0.32 }, th: 0.32, ratchet: { x0: -12.5, x1: -11.6, y: 0.55 }, box: { l: 1.6, h: 0.7, t: 0.62, slant: 0.3 }, ang: 0.07, center: [-3.4, 0, 0], size: 21.6 };
+  JAC.cl = () => [...neck(JAC.ring, 0.55), [-9, 0.44], [-5, 0.25], [-2, 0.08], [0, 0], [0.8, -0.13], [1.5, -0.22], [2.5, -0.24], [6.1, -0.24], [6.5, -0.23], [6.74, -0.17], [6.82, -0.09]];
+  JAC.hw = s => (s < 0.62 ? 0.28 - 0.1 * sm(0.0, 0.62, s) : 0.18 - 0.04 * sm(0.66, 0.74, s) - 0.04 * sm(0.985, 1, s));
   JAC.jaw = (g, steel, isB, jog) => {
-    // hooked end: the jaw turns in toward its partner, then two side-by-side teeth curve back (2 x 2 teeth)
-    g.add(U.mesh(U.bar([[6.2, -0.3], [6.55, -0.3], [6.78, -0.22], [6.88, -0.08]], s => 0.13 - 0.03 * s, 0.32, jog, 60, 0.06), steel, 'jaws'));
-    for (const z of [0.09, -0.09]) g.add(cone([6.78, -0.16, z], [-0.35, 1, 0], 0.17, 0.065, steel, 'jaws'));
+    // the jaw end turns in toward its partner and splits into two side-by-side sharp teeth (2 x 2)
+    for (const z of [0.085, -0.085]) g.add(cone([6.8, -0.09, z], [-0.25, 1, 0], 0.1, 0.06, steel, 'jaws'));
   };
   // ---------------- Skene tenaculum: long jaws that bow apart into a long open loop and close to a single incurved tooth ----------------
-  const SKE = { ring: { cx: -13.0, cy: 3.1, rx: 1.4, ry: 1.3, wall: 0.3, th: 0.32 }, th: 0.32, ratchet: { x0: -11.3, x1: -10.2, y: 0.62 }, box: { l: 1.3, h: 0.66, t: 0.62 }, ang: 0.06, center: [-1.0, 0, 0], size: 25.4 };
-  SKE.cl = () => { const a = ringAttach(SKE.ring); return [a, [-11.95, 1.3], [-11.3, 0.78], [-8, 0.53], [-4, 0.28], [-1.5, 0.08], [0, 0], [1.0, -0.12], [3, -0.27], [6, -0.47], [9, -0.66], [10.3, -0.72], [10.75, -0.62], [10.98, -0.4], [11.02, -0.24]]; };
-  SKE.hw = s => (s < 0.53 ? 0.28 - 0.1 * sm(0.0, 0.53, s) : 0.18 - 0.06 * sm(0.56, 0.66, s));
+  const SKE = { ring: { cx: -13.0, cy: 2.75, rx: 1.32, ry: 1.25, wall: 0.29, th: 0.32 }, th: 0.32, ratchet: { x0: -12.05, x1: -11.15, y: 0.55 }, box: { l: 1.6, h: 0.7, t: 0.62, slant: 0.3 }, ang: 0.06, center: [-1.0, 0, 0], size: 25.4 };
+  SKE.cl = () => [...neck(SKE.ring, 0.55), [-8, 0.45], [-4, 0.25], [-1.5, 0.07], [0, 0], [1.0, -0.12], [3, -0.27], [6, -0.47], [9, -0.66], [10.3, -0.71], [10.78, -0.6], [10.98, -0.38], [11.0, -0.16]];
+  SKE.hw = s => (s < 0.53 ? 0.28 - 0.1 * sm(0.0, 0.53, s) : 0.18 - 0.06 * sm(0.56, 0.66, s) - 0.04 * sm(0.985, 1, s));
   SKE.jaw = (g, steel, isB) => {
     // one tooth per jaw; the two points pass each other (A's in front, B's behind)
-    const z = isB ? -0.08 : 0.08; g.add(cone([10.98, -0.28, z], [-0.3, 1, 0], 0.34, 0.075, steel, 'jaws'));
+    const z = isB ? -0.075 : 0.075; g.add(cone([10.97, -0.2, z], [-0.3, 1, 0], 0.3, 0.07, steel, 'jaws'));
   };
   // ---------------- polyp forceps: short shanks, long slender jaws, small oval fenestrated tips ----------------
-  const POL = { ring: { cx: -9.8, cy: 2.6, rx: 1.3, ry: 1.2, wall: 0.3, th: 0.3 }, th: 0.3, ratchet: { x0: -8.7, x1: -7.7, y: 0.55 }, box: { l: 1.5, h: 0.62, t: 0.58 }, ang: 0.08, center: [-1.2, 0, 0], size: 20.3 };
-  POL.cl = () => { const a = ringAttach(POL.ring); return [a, [-8.75, 1.05], [-8.3, 0.6], [-7.6, 0.5], [-5, 0.32], [-2.5, 0.15], [-1, 0.05], [0, 0], [1, -0.08], [2.5, -0.12], [5, -0.12], [7.3, -0.12]]; };
+  const POL = { ring: { cx: -9.8, cy: 2.6, rx: 1.3, ry: 1.2, wall: 0.3, th: 0.3 }, th: 0.3, ratchet: { x0: -8.65, x1: -7.75, y: 0.5 }, box: { l: 1.9, h: 0.62, t: 0.58, slant: 0.3 }, ang: 0.08, center: [-1.2, 0, 0], size: 20.3 };
+  POL.cl = () => [...neck(POL.ring, 0.5), [-5, 0.32], [-2.5, 0.15], [-1, 0.05], [0, 0], [1, -0.08], [2.5, -0.12], [5, -0.12], [7.3, -0.12]];
   POL.hw = s => (s < 0.5 ? 0.24 - 0.06 * sm(0, 0.5, s) : 0.18 - 0.075 * sm(0.55, 0.66, s));
   POL.jaw = (g, steel, isB, jog) => {
     // oval tip: each jaw ends in a half-oval loop; closed, the two make a small fenestrated oval with serrated faces
-    g.add(U.mesh(U.bar([[7.15, -0.12], [7.5, -0.27], [7.95, -0.32], [8.4, -0.24], [8.62, -0.08], [8.64, -0.01]], () => 0.065, 0.34, jog, 80, 0.05), steel, 'jaws'));
-    g.add(U.mesh(U.bar([[7.3, -0.04], [7.32, -0.12]], () => 0.06, 0.34, jog, 4, 0.04), steel, 'jaws'));
-    for (let x = 7.55; x < 8.45; x += 0.15) { const yy = -0.27 - 0.05 * Math.sin(((x - 7.15) / 1.5) * Math.PI); g.add(U.mesh(new T.BoxGeometry(0.05, 0.05, 0.36), steel, 'jaws')).position.set(x, yy + 0.07, jog(x)); }
+    g.add(U.mesh(U.bar([[7.05, -0.12], [7.5, -0.27], [7.95, -0.32], [8.4, -0.24], [8.62, -0.08], [8.64, -0.01]], () => 0.065, 0.34, jog, 80, 0.05), steel, 'jaws'));
+    for (let x = 7.6; x < 8.4; x += 0.14) { const r = U.mesh(new T.BoxGeometry(0.045, 0.06, 0.36), steel, 'jaws'), yy = -0.24 - 0.07 * Math.sin(((x - 7.15) / 1.5) * Math.PI); r.position.set(x, yy, jog(x)); g.add(r); }
   };
   // ---------------- Bozeman uterine dressing forceps: long jaws with an S-curve out of the ring plane ----------------
-  const BOZ = { ring: { cx: -12.7, cy: 3.1, rx: 1.45, ry: 1.35, wall: 0.33, th: 0.32 }, th: 0.33, ratchet: { x0: -11.1, x1: -10.0, y: 0.95 }, box: { l: 1.3, h: 0.7, t: 0.64 }, ang: 0.06, center: [-1.0, 0, 0.7], size: 26.0 };
+  const BOZ = { ring: { cx: -12.7, cy: 3.1, rx: 1.45, ry: 1.35, wall: 0.33, th: 0.32 }, th: 0.33, ratchet: { x0: -11.5, x1: -10.5, y: 1.0 }, box: { l: 1.8, h: 0.74, t: 0.64, slant: 0.35 }, ang: 0.06, center: [-1.0, 0, 0.7], size: 26.0 };
   BOZ.z = x => 1.5 * sm(2.0, 9.5, x); // S-curve: jaws leave the ring plane and return parallel to it
-  BOZ.cl = isB => { const a = ringAttach(BOZ.ring), c = x => (isB ? 1 : -1) * 0.32 * Math.pow(sm(8.0, 11.5, x), 1.6); // both jaws bend the same way near the tip
-    return [a, [-11.6, 1.5], [-11.0, 1.12], [-8, 0.82], [-4, 0.42], [-1.5, 0.13], [0, 0], [1.2, -0.12], [4, -0.14], [8, -0.13 + c(8)], [9.5, -0.12 + c(9.5)], [10.6, -0.11 + c(10.6)], [11.45, -0.1 + c(11.45)]]; };
-  BOZ.hw = s => (s < 0.53 ? 0.28 - 0.08 * sm(0, 0.53, s) : 0.2 - 0.075 * sm(0.58, 0.7, s) - 0.02 * sm(0.9, 1, s));
+  BOZ.cl = isB => { const c = x => (isB ? -1 : 1) * 0.32 * Math.pow(sm(8.0, 11.5, x), 1.6); // both jaws bend the same way near the tip
+    return [...neck(BOZ.ring, 1.0), [-8, 0.78], [-4, 0.42], [-1.5, 0.13], [0, 0], [1.2, -0.18], [4, -0.17], [8, -0.13 + c(8)], [9.5, -0.12 + c(9.5)], [10.6, -0.1 + c(10.6)], [11.45, -0.08 + c(11.45)]]; };
+  BOZ.hw = s => (s < 0.53 ? 0.28 - 0.08 * sm(0, 0.53, s) : 0.2 - 0.1 * sm(0.56, 1.0, s) - 0.04 * sm(0.985, 1, s));
   BOZ.jaw = () => {}; // the jaw is the distal part of the shank bar (serrations lie on the closed faces and are not modeled)
   // ---------------- cervical biopsy punch: long shanks, short jaws that end in two sharp biting cups ----------------
-  const PUN = { ring: { cx: -16.8, cy: 3.1, rx: 1.25, ry: 1.18, wall: 0.3, th: 0.32 }, th: 0.32, ratchet: { x0: -15.4, x1: -14.4, y: 0.75 }, box: { l: 1.2, h: 0.66, t: 0.62 }, ang: 0.07, center: [-5.4, 0, 0], size: 24.0 };
-  PUN.cl = () => { const a = ringAttach(PUN.ring); return [a, [-15.75, 1.3], [-15.1, 0.82], [-12, 0.63], [-6, 0.31], [-2, 0.1], [0, 0], [1.0, -0.12], [2.9, -0.15], [3.15, -0.16]]; };
-  PUN.hw = s => (s < 0.8 ? 0.27 - 0.08 * sm(0, 0.8, s) : 0.19 - 0.05 * sm(0.83, 0.9, s));
+  const PUN = { ring: { cx: -16.8, cy: 3.1, rx: 1.25, ry: 1.18, wall: 0.3, th: 0.32 }, th: 0.32, ratchet: { x0: -15.5, x1: -14.5, y: 0.75 }, box: { l: 1.5, h: 0.7, t: 0.62, slant: 0.3 }, ang: 0.07, center: [-5.4, 0, 0], size: 24.0 };
+  PUN.cl = () => [...neck(PUN.ring, 0.75), [-12, 0.6], [-6, 0.31], [-2, 0.1], [0, 0], [1.0, -0.13], [2.6, -0.15], [3.4, -0.2], [4.3, -0.235], [5.0, -0.22], [5.3, -0.18]];
+  PUN.hw = s => (s < 0.75 ? 0.27 - 0.08 * sm(0, 0.75, s) : 0.19 - 0.105 * sm(0.78, 0.9, s));
   PUN.jaw = (g, steel, isB, jog) => {
     // slotted neck: thin rail bowing out, then the cup
-    g.add(U.mesh(U.bar([[3.0, -0.15], [3.6, -0.24], [4.4, -0.27], [5.0, -0.25], [5.25, -0.22]], () => 0.07, 0.3, jog, 60, 0.04), steel, 'jaws'));
     // biting cup: an oval shell whose sharp rim lies on the closing plane (y = 0), opening toward the other jaw
     const prof = arc(0, 0, 1, -Math.PI / 2, 0, 12).map(([x, y]) => [Math.max(0.001, x), y]);
-    const cup = U.mesh(shell(prof, 0.22, 40), steel, 'jaws'); cup.scale.set(0.5, 0.28, 0.27); cup.position.set(5.62, 0.0, jog(5.6)); g.add(cup);
-    if (isB) g.add(cone([6.02, -0.05, jog(6.0)], [-0.45, 1, 0], 0.16, 0.05, steel, 'jaws')); // tooth on the lower jaw
+    const cup = U.mesh(shell(prof, 0.22, 40), steel, 'jaws'); cup.scale.set(0.45, 0.26, 0.26); cup.position.set(5.55, 0.0, jog(5.55)); g.add(cup);
+    if (isB) g.add(cone([5.92, -0.05, jog(5.9)], [-0.45, 1, 0], 0.15, 0.05, steel, 'jaws')); // tooth on the lower jaw
   };
 
   const reg = (id, def) => { ST3D.models[id] = Object.assign({ id, recordId: id, hasArticulation: false, parts: [], partViews: {} }, def); };
@@ -138,12 +136,12 @@
     jawsOblique: { pos: [jawX + 4.5, 3.6, jawZ + 5.2], tgt: [jawX, 0, jawZ] }, tip: { pos: [jawX + 10, 0.3, jawZ + 0.8], tgt: [jawX + 2.5, 0, jawZ] },
     jaws: { pos: [jawX, 0, jawZ + 8.5], tgt: [jawX, 0, jawZ] }, ratchet: { pos: [o.ratchet.x0 + 0.5, 1.8, 5.5], tgt: [o.ratchet.x0 + 0.5, 0.2, 0] }, box: { pos: [0.6, 1.8, 5.5], tgt: [0, 0, 0] }
   }, extra));
-  const fPV = { rings: 'front', ratchet: 'ratchet', shanks: 'oblique', box: 'box', jaws: 'jawsOblique' };
+  const fPV = { rings: 'front', ratchet: 'ratchet', shanks: 'side', box: 'box', jaws: 'jawsOblique' };
 
-  reg('jacobs', { build: ringForceps(JAC), hasArticulation: true, parts: FPARTS, partViews: fPV, views: fViews(JAC, 5.2, 0),
+  reg('jacobs', { build: ringForceps(JAC), hasArticulation: true, parts: FPARTS, partViews: fPV, views: fViews(JAC, 5.2, 0, { teeth: { pos: [8.4, 1.4, 2.4], tgt: [6.6, 0, 0] } }),
     status: { state: 'complete-v1', reviewed: false, note: 'Procedural model compared against the student’s tray photo: long straight ring-handled forceps with short, narrow slotted jaws (about 5 cm) that hook inward at the tip, so the jaws look like a closed slot, unlike the long open loop of the Skene on the same tray. Teeth are modeled as 2 × 2 incurved points as listed in a catalog; the photo is too small to count them. Ratchet, ring and box sizes are approximations.' },
     dims: 'About 21.5 cm (8½ in), 2 × 2 teeth (MedGyn Jacobs 8½ in, 215 mm). Jaw length about 6.5 cm measured from the tray photo.' });
-  reg('skene', { build: ringForceps(SKE), hasArticulation: true, parts: FPARTS, partViews: fPV, views: fViews(SKE, 9.2, 0),
+  reg('skene', { build: ringForceps(SKE), hasArticulation: true, parts: FPARTS, partViews: fPV, views: fViews(SKE, 9.2, 0, { teeth: { pos: [12.8, 1.6, 2.8], tgt: [10.8, 0, 0] } }),
     status: { state: 'complete-v1', reviewed: false, note: 'Procedural model compared against the student’s tray photo: the jaws are long (about 11 cm) and bow apart into a long, narrow open loop that closes only at the tip, where each jaw turns in to a single tooth and the two points pass each other. The list writes “singletooth/Skene”; one catalog lists the Skene with 2 × 2 teeth and a side curve, which the top-down photo cannot confirm. Shown straight with one tooth per jaw.' },
     dims: 'About 25.4 cm (10 in) (MedGyn Skene 10 in, 254 mm; Ambler 9½ in). Jaw length about 11 cm measured from the tray photo.' });
   reg('polyp', { build: ringForceps(POL), hasArticulation: true, parts: FPARTS, partViews: fPV, views: fViews(POL, 7.6, 0),
