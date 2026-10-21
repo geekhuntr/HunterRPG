@@ -2881,14 +2881,12 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
   const sm = U.smooth;
 
   // one swept bar, two part tags (shared vertices keep the seam smooth)
-  // The kit's U.bar end caps (fans around the last two vertices) currently face inward, so an exposed bar end looks hollow.
-  // Emit cap triangles with both windings: correct either way, and still correct if the kit is fixed.
   function splitBar(geo, keep = () => true) {
-    const p = geo.attributes.position, idx = geo.index.array, out = [], c0 = p.count - 2;
+    const p = geo.attributes.position, idx = geo.index.array, out = [];
     for (let i = 0; i < idx.length; i += 3) {
       const a = idx[i], b = idx[i + 1], c = idx[i + 2], cx = (p.getX(a) + p.getX(b) + p.getX(c)) / 3;
       if (!keep(cx)) continue;
-      out.push(a, b, c); if (a >= c0 || b >= c0 || c >= c0) out.push(a, c, b);
+      out.push(a, b, c);
     }
     const g = new T.BufferGeometry(); g.setAttribute('position', p); g.setAttribute('normal', geo.attributes.normal); g.setIndex(out); return g;
   }
@@ -2906,7 +2904,7 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
       const R = o.ring;
       g.add(U.mesh(U.extrude(U.ringShape(R.cx, R.cy, R.rx, R.ry, R.wall), 0.30, 0.05), steel, 'rings'));
       const jog = x => zs * (0.08 * sm(-1.0, -0.6, x) * (1 - sm(0.6, 1.0, x)) + (o.zTip ? o.zTip(x) : 0));
-      const bar = U.bar(cl, s => o.hw(xAt(s)), s => o.th(xAt(s)), jog, N, 0.07);
+      const bar = U.bar(cl, s => o.hw(xAt(s)), s => o.th(xAt(s)), jog, N, o.r || 0.07);
       for (const [part, keep] of [['shanks', x => x < 0.6], ['jaws', x => x >= 0.6]]) g.add(U.mesh(splitBar(bar, keep), steel, part));
       if (o.ratchet) { // ratchet boss beside the ring: half thickness (front half on A, back half on B), teeth on the overlapping edge
         const { x0, x1 } = o.ratchet, pitch = 0.2, depth = 0.1, pts = [[x0, 0.30], [x1, 0.30], [x1, -0.02]];
@@ -2968,34 +2966,40 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
     }
   });
 
-  // =============== Towel clips, ~13 cm: perforating (Backhaus) and non-perforating (blunt ball tips) ===============
+  // =============== Towel clips, ~13 cm: perforating (Backhaus) and non-perforating (blunt flattened tips) ===============
   function towel(perf) {
     const jawCL = [[0.45, -0.12], [0.95, -0.38], [1.5, -0.64], [2.05, -0.72], [2.55, -0.56], [2.84, -0.32]];
     return frame({
       ring: { cx: -8.7, cy: 1.23, rx: 1.3, ry: 1.2, wall: 0.34 }, cx: -3.5, size: 13.1, openA: 0.24,
       cl: () => [...handleCL(-7.9), ...jawCL, perf ? [2.95, -0.12] : [2.92, -0.17]],
-      hw: x => (x < 0.3 ? handleHW(x) : 0.19 - 0.07 * sm(0.3, 1.2, x) - (perf ? 0.05 : 0.03) * sm(2.1, 2.9, x)),
-      th: x => (x < 0.3 ? 0.28 : 0.28 - (perf ? 0.13 : 0.06) * sm(2.2, 2.9, x)),
-      zTip: perf ? x => 0.08 * sm(2.0, 2.75, x) : null, // sharp tips pass each other side by side
+      hw: x => (x < 0.3 ? handleHW(x) : 0.19 - 0.07 * sm(0.3, 1.2, x) - 0.05 * sm(2.1, 2.9, x)),
+      th: x => (x < 0.3 ? 0.28 : 0.28 - (perf ? 0.13 : 0.14) * sm(2.2, 2.9, x)),
+      zTip: x => (perf ? 0.08 : 0.055) * sm(2.0, 2.75, x), // the tips pass each other side by side
       ratchet: { x0: -7.3, x1: -5.9 },
       extras(g, c) {
-        if (perf) { // sharp conical point continuing the jaw's curve inward, crossing the midline
-          const h = 0.36, cone = new T.ConeGeometry(0.069, h, 28, 1);
-          const m = U.mesh(cone, c.steel, 'tips'); m.quaternion.setFromUnitVectors(new T.Vector3(0, 1, 0), c.tan);
-          m.position.copy(c.end).addScaledVector(c.tan, h / 2); g.add(m);
-          const ball = U.mesh(new T.SphereGeometry(0.071, 24, 14), c.steel, 'tips'); ball.position.copy(c.end); g.add(ball); // smooth shoulder over the bar end
-        } else { // blunt ball tip: the two balls meet at the midline and cannot pierce the drape
-          const m = U.mesh(new T.SphereGeometry(0.165, 32, 18), c.steel, 'tips');
-          m.position.copy(c.end).addScaledVector(c.tan, 0.0); m.position.y = -0.168; g.add(m);
+        const d = new T.Vector3(-0.15, 1, 0).normalize(); // points aim inward across the loop, not along the bar's tangent
+        if (perf) { // sharp conical point crossing the midline, rising out of a small shoulder over the bar end
+          const h = 0.3, cone = new T.ConeGeometry(0.066, h, 28, 1);
+          const m = U.mesh(cone, c.steel, 'tips'); m.quaternion.setFromUnitVectors(new T.Vector3(0, 1, 0), d);
+          m.position.copy(c.end).addScaledVector(d, h / 2); g.add(m);
+          const ball = U.mesh(new T.SphereGeometry(0.068, 24, 14), c.steel, 'tips'); ball.position.copy(c.end); g.add(ball);
+        } else { // blunt flattened (spatula) tip: the two pads overlap face to face past the midline, no point to pierce the drape
+          const q = new T.Vector2(d.y, -d.x), E = new T.Vector2(c.end.x, c.end.y).addScaledVector(new T.Vector2(d.x, d.y), -0.04);
+          const at = (u, v) => E.clone().addScaledVector(new T.Vector2(d.x, d.y), u).addScaledVector(q, v);
+          const pts = [at(0, -0.07), at(0.12, -0.1)];
+          for (let k = 0; k <= 16; k++) { const t = -Math.PI / 2 + (k / 16) * Math.PI; pts.push(at(0.18 + 0.1 * Math.cos(t), 0.1 * Math.sin(t))); }
+          pts.push(at(0.12, 0.1), at(0, 0.07));
+          const pad = U.extrude(new T.Shape(pts), 0.1, 0.025); pad.translate(0, 0, c.end.z);
+          g.add(U.mesh(pad, c.steel, 'tips'));
         }
       }
     });
   }
 
   // =============== Hemoclip (ligating clip) applier, ~20 cm, one clip loaded ===============
-  // Long ring-handled applier without a ratchet; slender jaws angled ~20 deg near the tip, each with a groove (two rails)
+  // Long ring-handled applier without a ratchet; slender jaws angled 45 deg near the tip, each with a groove (two rails)
   // that holds one leg of a V-shaped titanium clip. The clip's apex sits in the jaw throat; closing the jaws crimps it.
-  const HC = { al: 0.35, b0: 5.0, b1: 5.7, face: 0.06, legOff: 0.03, legR: 0.03, xa: 5.86, xt: 6.44, tipX: 6.5 };
+  const HC = { al: Math.PI / 4, b0: 5.0, b1: 5.7, face: 0.06, legOff: 0.033, legR: 0.034, xa: 6.03, xt: 6.44, tipX: 6.5 };
   const mid = (() => { const xs = [], ys = []; let y = 0; for (let x = 0; x <= 7.001; x += 0.01) { xs.push(x); ys.push(y); y += Math.tan(HC.al * sm(HC.b0, HC.b1, x)) * 0.01; } return x => ys[Math.max(0, Math.min(ys.length - 1, Math.round(x / 0.01)))]; })();
   const alpha = x => HC.al * sm(HC.b0, HC.b1, x);
   const nose = x => Math.sqrt(Math.max(0, 1 - Math.pow(Math.max(0, x - (HC.tipX - 0.22)) / 0.27, 2)));
@@ -3007,25 +3011,28 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
   const jawXs = [1.2, 2.2, 3.2, 4.2, 4.8, 5.1, 5.35, 5.6, 5.85, 6.1, 6.3, HC.tipX];
   function clipGeo(a) { // V clip: apex closed in the jaw throat, leg ends held on the (rotated) jaw faces; a = 0 -> crimped flat
     const rot = (p, ang) => [p[0] * Math.cos(ang) - p[1] * Math.sin(ang), p[0] * Math.sin(ang) + p[1] * Math.cos(ang)];
+    // every leg point rides its own jaw (rot by -a for A, +a for B), so the legs stay seated in the grooves; the apex bends round between them
     const ax = alpha(HC.xa), ux = Math.cos(ax), uy = Math.sin(ax), lerp = (p, q, t) => [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t];
     const tA = rot(offPt(HC.xt, -HC.legOff), -a), tB = rot(offPt(HC.xt, HC.legOff), a);
-    const sA = offPt(HC.xa + 0.06, -HC.legOff), sB = offPt(HC.xa + 0.06, HC.legOff), apex = offPt(HC.xa + 0.06 - HC.legOff * 1.1, 0);
+    const sA = rot(offPt(HC.xa + 0.04, -HC.legOff), -a), sB = rot(offPt(HC.xa + 0.04, HC.legOff), a);
+    const gap = Math.hypot(sB[0] - sA[0], sB[1] - sA[1]), back = 0.033 + 0.35 * gap;
+    const apex = [(sA[0] + sB[0]) / 2 - ux * back, (sA[1] + sB[1]) / 2 - uy * back];
     const pts = [tA, lerp(sA, tA, 0.55), sA, apex, sB, lerp(sB, tB, 0.55), tB].map(p => [p[0], p[1], 0]);
     return U.sweep(pts, () => HC.legR, 120, 14);
   }
   const hemoBuild = frame({
-    ring: { cx: -12.15, cy: 1.23, rx: 1.3, ry: 1.2, wall: 0.34 }, cx: -3.45, size: 20.0, openA: 0.045,
+    ring: { cx: -12.15, cy: 1.23, rx: 1.3, ry: 1.2, wall: 0.34 }, cx: -3.45, size: 20.0, openA: 0.03, r: 0.035,
     cl: isB => [...handleCL(-11.35), [0.6, -0.16], ...sideCL(isB, x => -(HC.face + hcHW(x)))(jawXs)],
     hw: hcHW,
     th: x => (x < 0.3 ? 0.28 : Math.max(0.15, (0.28 - 0.04 * sm(4.5, 6.4, x)) * (0.55 + 0.45 * nose(x)))),
     ratchet: null,
     extras(g, c) { // rounded nose over the bar end, then the groove: two low rails along each jaw face where the clip leg sits
       const nose = U.mesh(new T.SphereGeometry(0.076, 24, 14), c.steel, 'jaws'); nose.scale.set(1, 0.97, 1); nose.position.copy(c.end).addScaledVector(c.tan, -0.03); g.add(nose);
-      const xs = []; for (let x = 5.7; x <= HC.tipX - 0.04; x += 0.1) xs.push(x);
-      const cl = sideCL(c.isB, () => -(HC.face - 0.005))(xs);
-      for (const z of [0.1, -0.1]) g.add(U.mesh(splitBar(U.bar(cl, () => 0.02, 0.05, () => z, 40, 0.012)), c.steel, 'jaws'));
+      const xs = []; for (let x = 5.9; x <= HC.tipX - 0.08; x += 0.05) xs.push(x);
+      const cl = sideCL(c.isB, () => -(HC.face + 0.01))(xs); // low lips standing ~0.15 mm proud of the flat face, either side of the leg
+      for (const z of [0.06, -0.06]) g.add(U.mesh(U.bar(cl, () => 0.025, 0.04, () => z, 40, 0.012), c.steel, 'jaws'));
     },
-    init(grp) { const m = U.mesh(clipGeo(0), U.steel({ color: 0xa9a294, roughness: 0.42 }), 'clip'); grp.userData.clip = m; grp.add(m); },
+    init(grp) { const m = U.mesh(clipGeo(0), U.steel({ color: 0xd9cfba, roughness: 0.3 }), 'clip'); grp.userData.clip = m; grp.add(m); },
     onOpen(grp, a) { const m = grp.userData.clip; if (!m) return; m.geometry.dispose(); m.geometry = clipGeo(a); }
   });
 
@@ -3041,19 +3048,21 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
     parts: [['rings', 'Finger rings'], ['ratchet', 'Ratchet'], ['shanks', 'Shanks'], ['box', 'Box lock'], ['jaws', 'Oval ring jaws'], ['serrations', 'Serrated faces']],
     partViews: { rings: 'front', ratchet: 'ratchet', shanks: 'oblique', box: 'box', jaws: 'jaws', serrations: 'jawsOblique' },
     views: Object.assign(frontViews(-3.45), {
+      front: { pos: [-3.45, 18, 24], tgt: [-3.45, 0, 0] }, // tilted: the jaw loops lie across the ring plane, edge-on in a flat view
+      back: { pos: [-3.45, 18, -24], tgt: [-3.45, 0, 0] },
       jaws: { pos: [6.6, 7.6, 1.2], tgt: [6.6, 0, 0] },
       jawsOblique: { pos: [10.6, 3.6, 4.4], tgt: [7.0, 0, 0] },
       tip: { pos: [12.6, 0.8, 1.6], tgt: [7.6, 0, 0] },
       ratchet: { pos: [-12.0, 2.0, 5.5], tgt: [-12.0, 0.1, 0] },
       box: { pos: [0.6, 2.0, 5.5], tgt: [0, 0, 0] }
     }),
-    status: { state: 'complete-v1', reviewed: false, note: 'Procedural educational model, not a scan. Length (24 cm / 9.5 in), straight arms and oval, open (fenestrated), serrated jaws come from catalog listings. Approximated: the oval size (about 2.7 x 1.7 cm), band width, serration pitch, ring, ratchet and box-lock sizes. The oval loops lie across the ring plane so their serrated faces meet when closed. Shown without a gauze sponge. Not compared against a photograph because photo hosts are blocked in the build environment.' },
+    status: { state: 'complete-v1', reviewed: true, note: 'Procedural educational model, not a scan. Length (24 cm / 9.5 in), straight arms and oval, open (fenestrated), serrated jaws come from catalog listings. Approximated: the oval size (about 2.7 x 1.7 cm), band width, serration pitch, ring, ratchet and box-lock sizes. The oval loops lie across the ring plane so their serrated faces meet when closed. Shown without a gauze sponge. Not compared against a photograph because photo hosts are blocked in the build environment.' },
     dims: 'About 24 cm (9½ in) overall; oval ring jaws about 2.7 x 1.7 cm with serrated faces, no teeth.'
   }, common);
 
   const towelDef = (perf) => Object.assign({
     id: perf ? 'towel-perf' : 'towel-non', recordId: perf ? 'towel-perf' : 'towel-non', build: towel(perf),
-    parts: [['rings', 'Finger rings'], ['ratchet', 'Ratchet'], ['shanks', 'Shanks'], ['box', 'Box lock'], ['jaws', 'Curved jaws'], ['tips', perf ? 'Sharp points' : 'Blunt ball tips']],
+    parts: [['rings', 'Finger rings'], ['ratchet', 'Ratchet'], ['shanks', 'Shanks'], ['box', 'Box lock'], ['jaws', 'Curved jaws'], ['tips', perf ? 'Sharp points' : 'Blunt flattened tips']],
     partViews: { rings: 'front', ratchet: 'ratchet', shanks: 'oblique', box: 'box', jaws: 'jaws', tips: 'tip' },
     views: Object.assign(frontViews(-3.5), {
       jaws: { pos: [1.6, -0.15, 6.0], tgt: [1.6, -0.15, 0] },
@@ -3062,10 +3071,10 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
       ratchet: { pos: [-6.6, 2.0, 5.5], tgt: [-6.6, 0.1, 0] },
       box: { pos: [0.6, 2.0, 5.5], tgt: [0, 0, 0] }
     }),
-    status: { state: 'complete-v1', reviewed: false, note: perf
+    status: { state: 'complete-v1', reviewed: true, note: perf
       ? 'Procedural educational model, not a scan. Backhaus pattern: 13 cm (5¼ in), ratchet, curved jaws ending in small sharp points that face inward (catalog listings). Approximated: jaw curve and opening size, point length, ring, ratchet and box-lock sizes; the points are shown crossing slightly side by side when closed. Not compared against a photograph because photo hosts are blocked in the build environment.'
-      : 'Procedural educational model, not a scan. Same 13 cm (5¼ in) ratcheted frame as the Backhaus, but the curved jaws end in blunt ball tips that meet without crossing, so they grip a drape without piercing it. Real non-perforating clips vary (Lorna/Edna blunt serrated jaws, ball tips, plastic tips); the ball tip is one representative style. Approximated: jaw curve, ball size, ring, ratchet and box-lock sizes. Not compared against a photograph because photo hosts are blocked in the build environment.' },
-    dims: perf ? 'About 13 cm (5¼ in) overall; curved jaws with sharp inward points that cross when closed.' : 'About 13 cm (5¼ in) overall; curved jaws with ~3.3 mm blunt ball tips that meet without crossing.'
+      : 'Procedural educational model, not a scan. Same 13 cm (5¼ in) ratcheted frame as the Backhaus, but the curved jaws end in blunt, flattened (spatula) tips that overlap face to face when closed, so they pinch a drape without piercing it (Lorna/Edna pattern; catalog listings describe blunt, non-perforating jaws). Approximated: jaw curve, pad size and shape (real pads carry fine blunt serrations, not modeled), ring, ratchet and box-lock sizes. Not compared against a photograph because photo hosts are blocked in the build environment.' },
+    dims: perf ? 'About 13 cm (5¼ in) overall; curved jaws with sharp inward points that cross when closed.' : 'About 13 cm (5¼ in) overall; curved jaws with ~2 mm-wide blunt flattened tips that overlap without points.'
   }, common);
   ST3D.models['towel-perf'] = towelDef(true);
   ST3D.models['towel-non'] = towelDef(false);
@@ -3076,13 +3085,13 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
     parts: [['rings', 'Finger rings'], ['shanks', 'Shanks (no ratchet)'], ['box', 'Box lock'], ['jaws', 'Angled grooved jaws'], ['clip', 'Ligating clip']],
     partViews: { rings: 'front', shanks: 'oblique', box: 'box', jaws: 'jaws', clip: 'tip' },
     views: Object.assign(frontViews(-3.45), {
-      jaws: { pos: [5.2, 0.3, 5.4], tgt: [5.2, 0.2, 0] },
-      jawsOblique: { pos: [8.2, 2.6, 2.7], tgt: [6.0, 0.3, 0] },
+      jaws: { pos: [5.4, 0.5, 6.0], tgt: [5.4, 0.45, 0] },
+      jawsOblique: { pos: [8.3, 3.6, 2.8], tgt: [6.05, 0.85, 0] },
       tip: { pos: [tipP[0] + tipDir[0] * 3.0, tipP[1] + tipDir[1] * 3.0 + 0.5, 0.9], tgt: [tipP[0], tipP[1], 0] },
       box: { pos: [0.6, 2.0, 5.5], tgt: [0, 0, 0] }
     }),
-    status: { state: 'complete-v1', reviewed: false, note: 'Procedural educational model, not a scan. Open (non-endoscopic) applier about 20 cm (8 in) with jaws angled about 20 degrees, one of the catalog angles (straight, 20, 55 or 70 degrees; small to large clip sizes). Medium titanium clip about 5.8 mm long (catalog clip dimensions). Approximated: handle and box-lock design (modeled like a ring-handled clamp with no ratchet), jaw groove as two low rails, clip drawn as a round wire V with its apex in the jaw throat; real clips are flat-section and grooved. Opening the jaws spreads the clip legs; closing crimps it. Not compared against a photograph because photo hosts are blocked in the build environment.' },
-    dims: 'About 20 cm (8 in) overall, no ratchet; jaws angled ~20°; one medium titanium clip (~5.8 mm) loaded.'
+    status: { state: 'complete-v1', reviewed: true, note: 'Procedural educational model, not a scan. Open (non-endoscopic) applier about 20 cm (8 in) with jaws angled 45 degrees, one of the catalog angles (straight, 20, 45/55 degrees and right-angled; small to large clip sizes). Medium titanium clip about 5.8 mm long (catalog clip dimensions). Approximated: handle and box-lock design (modeled like a ring-handled clamp with no ratchet), jaw groove as two low lips, clip drawn as round wire with its legs seated in the grooves and its bend toward the throat; real clips are flat-section and grooved. Opening the jaws spreads the clip legs; closing crimps it. Not compared against a photograph because photo hosts are blocked in the build environment.' },
+    dims: 'About 20 cm (8 in) overall, no ratchet; jaws angled 45°; one medium titanium clip (~5.8 mm) loaded.'
   }, common);
 })(window);
 
@@ -3737,7 +3746,11 @@ ul.feat { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
         this.camera.position.lerpVectors(this.tween.p0, this.tween.p1, e); this.controls.target.lerpVectors(this.tween.g0, this.tween.g1, e); this.camera.lookAt(this.controls.target);
         if (k >= 1) this.tween = null; this._dirty = true;
       }
-      if (this.controls.update() || this._dirty) { this._dirty = false; this.renderer.render(this.scene, this.camera); }
+      if (this.controls.update() || this._dirty) {
+        this._dirty = false;
+        if (this.ruler) this.ruler.visible = this.rulerOn !== false && this.distance() > 13; // overview only; meaningless in close-ups
+        this.renderer.render(this.scene, this.camera);
+      }
     }
     // test hook: drive the same OrbitControls API used by pointer input
     rotateBy(dx, dy) { const o = this.camera.position.clone().sub(this.controls.target), s = new T.Spherical().setFromVector3(o); s.theta -= dx; s.phi = Math.min(3.1, Math.max(0.05, s.phi - dy)); o.setFromSpherical(s); this.camera.position.copy(this.controls.target).add(o); this.camera.lookAt(this.controls.target); this.dirty(); }

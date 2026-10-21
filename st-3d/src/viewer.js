@@ -73,7 +73,11 @@
         this.camera.position.lerpVectors(this.tween.p0, this.tween.p1, e); this.controls.target.lerpVectors(this.tween.g0, this.tween.g1, e); this.camera.lookAt(this.controls.target);
         if (k >= 1) this.tween = null; this._dirty = true;
       }
-      if (this.controls.update() || this._dirty) { this._dirty = false; this.renderer.render(this.scene, this.camera); }
+      if (this.controls.update() || this._dirty) {
+        this._dirty = false;
+        if (this.ruler) this.ruler.visible = this.rulerOn !== false && this.distance() > 13; // overview only; meaningless in close-ups
+        this.renderer.render(this.scene, this.camera);
+      }
     }
     // test hook: drive the same OrbitControls API used by pointer input
     rotateBy(dx, dy) { const o = this.camera.position.clone().sub(this.controls.target), s = new T.Spherical().setFromVector3(o); s.theta -= dx; s.phi = Math.min(3.1, Math.max(0.05, s.phi - dy)); o.setFromSpherical(s); this.camera.position.copy(this.controls.target).add(o); this.camera.lookAt(this.controls.target); this.dirty(); }
