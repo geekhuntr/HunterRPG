@@ -13,10 +13,10 @@
   function bladeGeo(o, zs, cs) {
     const n = 140, xs = -0.05, L = o.L;
     const yc = x => cs * o.curve * Math.pow(Math.max(0, (x - o.x0) / (L - o.x0)), 2);
-    const taper = x => { const s = Math.max(0, x) / L; return o.w0 / 2 + (o.w1 / 2 - o.w0 / 2) * U.smooth(0, 1, Math.min(1, s * 1.05)); };
+    const taper = x => { const s = Math.max(0, x) / L; return o.w0 / 2 + (o.w1 / 2 - o.w0 / 2) * Math.pow(Math.min(1, s), 1.25); };
     const rt = taper(L) * 1.15, xr = L - rt; // rounded (blunt) tip: elliptical closure over the last rt cm
     const hwAt = x => (x <= xr ? taper(x) : taper(x) * Math.sqrt(Math.max(0, 1 - Math.pow((x - xr) / rt, 2))));
-    const thAt = x => { const s = Math.max(0, x) / L; return o.t0 + (o.t1 - o.t0) * s; };
+    const thAt = x => { const s = Math.max(0, x) / L, q = x <= xr ? 0 : (x - xr) / rt; return (o.t0 + (o.t1 - o.t0) * s) * (0.55 + 0.45 * Math.sqrt(Math.max(0, 1 - q * q))); };
     // stations: denser toward the tip
     const X = []; for (let i = 0; i <= n; i++) { const u = i / n; X.push(xs + (L - xs) * Math.sin(u * Math.PI / 2)); }
     // section faces as polylines in (u across the blade: + = cutting edge side, v = height above the shearing face); CCW loop
@@ -79,7 +79,10 @@
       // blade (curve sign inverted on B because the whole half is mirrored in Y afterwards)
       g.add(U.mesh(bladeGeo(o.blade, zs, isB ? -1 : 1), steel, 'blades'));
       const zOut = GAP + o.tH;
-      if (!isB) { for (const geo of screwHead(o.screwR, o.screwH, o.screwR * 0.11, zOut - 0.004, 0.5)) g.add(U.mesh(geo, steel, 'screw')); }
+      if (!isB) { // slotted head on half A; the slot floor is a slightly darker, duller disc so the slot reads at a glance
+        const geos = screwHead(o.screwR, o.screwH, o.screwR * 0.2, zOut - 0.004, 0.5), dark = U.steel({ color: 0x7c868e, roughness: 0.5 });
+        geos.forEach((geo, i) => g.add(U.mesh(geo, i === geos.length - 1 ? dark : steel, 'screw')));
+      }
       else { // flush threaded end / nut face on the other side
         const nut = U.extrude(new T.Shape(U.ellipsePts(0, 0, o.screwR * 0.82, o.screwR * 0.82, 48)), 0.06, 0.02); nut.translate(0, 0, -(zOut + 0.026));
         g.add(U.mesh(nut, steel, 'screw'));
@@ -105,7 +108,7 @@
         oblique: { pos: [cx + 9, 10, 22], tgt: [cx, 0, 0] },
         blades: { pos: [bc, cyB, d], tgt: [bc, cyB, 0] },
         jawsOblique: { pos: [bc + d * 0.55, cyB + d * 0.45, d * 0.62], tgt: [bc, cyB, 0] },
-        tip: { pos: [L + 2.6, o.blade.curve + 1.6, 3.2], tgt: [L - 0.7, o.blade.curve * 0.8, 0] },
+        tip: { pos: [L + 3.4, o.blade.curve + 2.4, 4.4], tgt: [L - 1.0, o.blade.curve * 0.6, 0] },
         screw: { pos: [0.9, 1.3, 4.6], tgt: [0, 0, 0] }
       },
       status: { state: 'complete-v1', note: o.note },
