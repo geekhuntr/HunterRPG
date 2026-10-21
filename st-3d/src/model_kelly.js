@@ -7,7 +7,7 @@
 (function (root) {
   const ST3D = root.ST3D;
   ST3D.models.kelly = ST3D.hemostat({
-    id: 'kelly', recordId: 'kelly',
+    id: 'kelly', recordId: 'kelly', reviewed: true,
     tipX: 3.85, serrFrom: 1.85, pitch: 0.075, depth: 0.036, chamfer: 0.015, curveK: 0.05,
     w0: 0.28, w1: 0.115, h0: 0.17, h1: 0.1, shankW: 1.0, shankT: 0.31,
     note: 'Procedural educational model of a CURVED Kelly (a straight pattern also exists), not a scan. Sourced from text descriptions (study guides, catalog listings): about 14 cm (5½ in), ratchet, box lock, transverse serrations on the distal half to two-thirds of the jaw only (modeled at ~55%), proximal part smooth. Approximations: jaw length (~3.3 cm beyond the box), jaw width/thickness, the amount of curve, serration pitch (0.75 mm) and depth, ring, ratchet and box-lock sizes; the box lock is a solid block with rivet heads (no visible slot); serrations are exaggerated slightly so they read at screen size. Not compared against a photograph because photo hosts are blocked in the build environment.',
