@@ -46,7 +46,7 @@ const assert = require('assert'); const OUT = process.argv[2];
   // Inventory
   await p.click('[data-act="tab"][data-v="inventory"]'); await p.waitForTimeout(300); const t = await p.innerText('main');
   const ready = (t.match(/3D model/g) || []).length; assert(/81 list rows/.test(t) && /49 study records/.test(t)); assert.equal(await p.locator('.invrow').count(), 49); pass(`inventory lists all 49 instruments with status (${ready} with a 3D model label)`);
-  await p.click('[data-act="invopen"][data-v="kocher"]'); assert(/No 3D model yet/.test(await p.innerText('main'))); await p.click('[data-act="invopen"][data-v="crile"]'); await p.click('[data-act="openmodel"][data-v="crile"]'); await p.waitForTimeout(500); assert.equal(await p.evaluate(() => __st3d.viewer.def.id), 'crile'); pass('inventory opens a model in the inspector; unmodeled items say so');
+  await p.click('[data-act="invopen"][data-v="nurse"]'); assert(/Not modeled: instrument type unconfirmed/.test(await p.innerText('main'))); await p.click('[data-act="invopen"][data-v="crile"]'); await p.click('[data-act="openmodel"][data-v="crile"]'); await p.waitForTimeout(500); assert.equal(await p.evaluate(() => __st3d.viewer.def.id), 'crile'); pass('inventory opens a model in the inspector; unmodeled items say so');
   await p.screenshot({ path: OUT + '/inventory_to_inspect.png' });
   // context count stays bounded after many tab switches (viewers are disposed)
   for (let i = 0; i < 6; i++) { await p.click('[data-act="tab"][data-v="compare"]'); await p.waitForTimeout(200); await p.click('[data-act="tab"][data-v="inspect"]'); await p.waitForTimeout(200); }
