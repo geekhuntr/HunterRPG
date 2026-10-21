@@ -92,7 +92,7 @@
   const neck = (R, yr) => [[R.cx + R.rx * 0.74, R.cy - R.ry * 0.6], [R.cx + R.rx * 0.93, yr + 0.38], [R.cx + R.rx * 1.12, yr + 0.02], [R.cx + R.rx * 1.6, yr - 0.03]];
 
   // ---------------- Jacobs tenaculum (vulsellum): short, narrow slotted jaws ending in 2 x 2 incurved hooks ----------------
-  const JAC = { ring: { cx: -13.4, cy: 2.6, rx: 1.27, ry: 1.2, wall: 0.29, th: 0.32 }, th: 0.32, ratchet: { x0: -12.5, x1: -11.6, y: 0.55 }, box: { l: 1.6, h: 0.7, t: 0.62, slant: 0.3 }, ang: 0.07, center: [-3.4, 0, 0], size: 21.6 };
+  const JAC = { ring: { cx: -13.4, cy: 2.6, rx: 1.27, ry: 1.2, wall: 0.29, th: 0.32 }, th: 0.32, ratchet: { x0: -12.5, x1: -11.6, y: 0.55 }, box: { l: 2.4, h: 0.72, t: 0.62, slant: 0.45 }, ang: 0.07, center: [-3.4, 0, 0], size: 21.6 };
   JAC.cl = () => [...neck(JAC.ring, 0.55), [-9, 0.44], [-5, 0.25], [-2, 0.08], [0, 0], [0.8, -0.13], [1.5, -0.22], [2.5, -0.24], [6.1, -0.24], [6.5, -0.25], [6.72, -0.22], [6.82, -0.17]];
   JAC.hw = s => (s < 0.62 ? 0.28 - 0.1 * sm(0.0, 0.62, s) : 0.18 - 0.04 * sm(0.66, 0.74, s) - 0.04 * sm(0.985, 1, s));
   JAC.jaw = (g, steel, isB, jog) => {
@@ -100,39 +100,42 @@
     for (const z of isB ? [0.04, -0.04] : [0.11, -0.11]) g.add(cone([6.8, -0.11, z], [-0.3, 1, 0], 0.15, 0.055, steel, 'jaws')); // A's pair interleaves with B's
   };
   // ---------------- Skene tenaculum: long jaws that bow apart into a long open loop and close to a single incurved tooth ----------------
-  const SKE = { ring: { cx: -13.0, cy: 2.75, rx: 1.32, ry: 1.25, wall: 0.29, th: 0.32 }, th: 0.32, ratchet: { x0: -12.05, x1: -11.15, y: 0.55 }, box: { l: 1.6, h: 0.7, t: 0.62, slant: 0.3 }, ang: 0.06, center: [-1.0, 0, 0], size: 25.4 };
-  SKE.cl = () => [...neck(SKE.ring, 0.55), [-8, 0.45], [-4, 0.25], [-1.5, 0.07], [0, 0], [1.0, -0.12], [3, -0.27], [6, -0.47], [9, -0.66], [10.3, -0.71], [10.78, -0.6], [10.98, -0.38], [11.0, -0.16]];
-  SKE.hw = s => (s < 0.53 ? 0.28 - 0.1 * sm(0.0, 0.53, s) : 0.18 - 0.06 * sm(0.56, 0.66, s) - 0.04 * sm(0.985, 1, s));
+  const SKE = { ring: { cx: -14.5, cy: 2.75, rx: 1.32, ry: 1.25, wall: 0.29, th: 0.32 }, th: 0.32, ratchet: { x0: -13.55, x1: -12.65, y: 0.55 }, box: { l: 2.8, h: 0.74, t: 0.62, slant: 0.45 }, ang: 0.06, center: [-2.6, 0, 0], size: 25.4 };
+  SKE.cl = () => [...neck(SKE.ring, 0.55), [-9, 0.47], [-4.5, 0.26], [-1.5, 0.07], [0, 0], [0.86, -0.12], [2.58, -0.27], [5.16, -0.47], [7.74, -0.65], [8.86, -0.68], [9.25, -0.56], [9.44, -0.34], [9.47, -0.14], [9.45, -0.03]];
+  SKE.hw = s => (s < 0.6 ? 0.28 - 0.1 * sm(0.0, 0.6, s) : 0.18 - 0.06 * sm(0.63, 0.72, s) - 0.035 * sm(0.97, 1, s));
   SKE.jaw = (g, steel, isB) => {
-    // one tooth per jaw; the two points pass each other (A's in front, B's behind)
-    const z = isB ? -0.075 : 0.075; g.add(cone([10.97, -0.2, z], [-0.3, 1, 0], 0.3, 0.07, steel, 'jaws'));
+    // the jaw ends meet in a smooth rounded loop end; one sharp tooth per jaw points back into the loop (A's in front, B's behind)
+    const z = isB ? -0.07 : 0.07; g.add(cone([9.36, -0.2, z], [-1, 0.75, 0], 0.26, 0.065, steel, 'jaws'));
   };
   // ---------------- polyp forceps: short shanks, long slender jaws, small oval fenestrated tips ----------------
-  const POL = { ring: { cx: -9.8, cy: 2.6, rx: 1.3, ry: 1.2, wall: 0.3, th: 0.3 }, th: 0.3, ratchet: { x0: -8.65, x1: -7.75, y: 0.5 }, box: { l: 1.9, h: 0.62, t: 0.58, slant: 0.3 }, ang: 0.08, center: [-1.2, 0, 0], size: 20.3 };
+  const POL = { ring: { cx: -9.8, cy: 2.75, rx: 1.45, ry: 1.33, wall: 0.31, th: 0.3 }, th: 0.3, ratchet: { x0: -8.5, x1: -7.6, y: 0.5 }, box: { l: 2.8, h: 0.66, t: 0.58, slant: 0.45 }, ang: 0.08, center: [-1.2, 0, 0], size: 20.3 };
   POL.cl = () => [...neck(POL.ring, 0.5), [-5, 0.32], [-2.5, 0.15], [-1, 0.05], [0, 0], [1, -0.08], [2.5, -0.12], [5, -0.12], [7.3, -0.12]];
   POL.hw = s => (s < 0.5 ? 0.24 - 0.06 * sm(0, 0.5, s) : 0.18 - 0.075 * sm(0.55, 0.66, s));
   POL.jaw = (g, steel, isB, jog) => {
     // oval tip: each jaw ends in a half-oval loop; closed, the two make a small fenestrated oval with serrated faces
-    g.add(U.mesh(U.bar([[7.05, -0.12], [7.5, -0.27], [7.95, -0.32], [8.4, -0.24], [8.62, -0.08], [8.64, -0.01]], () => 0.065, 0.34, jog, 80, 0.05), steel, 'jaws'));
-    for (let x = 7.6; x < 8.4; x += 0.14) { const r = U.mesh(new T.BoxGeometry(0.045, 0.06, 0.36), steel, 'jaws'), yy = -0.24 - 0.07 * Math.sin(((x - 7.15) / 1.5) * Math.PI); r.position.set(x, yy, jog(x)); g.add(r); }
+    g.add(U.mesh(U.bar([[7.05, -0.12], [7.5, -0.2], [7.95, -0.24], [8.4, -0.19], [8.62, -0.07], [8.64, -0.01]], () => 0.065, 0.34, jog, 80, 0.05), steel, 'jaws'));
+    for (let x = 7.6; x < 8.4; x += 0.14) { const r = U.mesh(new T.BoxGeometry(0.045, 0.06, 0.36), steel, 'jaws'), yy = -0.16 - 0.06 * Math.sin(((x - 7.15) / 1.5) * Math.PI); r.position.set(x, yy, jog(x)); g.add(r); }
   };
   // ---------------- Bozeman uterine dressing forceps: long jaws with an S-curve out of the ring plane ----------------
-  const BOZ = { ring: { cx: -12.7, cy: 3.1, rx: 1.45, ry: 1.35, wall: 0.33, th: 0.32 }, th: 0.33, ratchet: { x0: -11.5, x1: -10.5, y: 1.0 }, box: { l: 1.8, h: 0.74, t: 0.64, slant: 0.35 }, ang: 0.06, center: [-1.0, 0, 0.7], size: 26.0 };
-  BOZ.z = x => 1.5 * sm(2.0, 9.5, x); // S-curve: jaws leave the ring plane and return parallel to it
-  BOZ.cl = isB => { const c = x => (isB ? -1 : 1) * 0.32 * Math.pow(sm(8.0, 11.5, x), 1.6); // both jaws bend the same way near the tip
-    return [...neck(BOZ.ring, 1.0), [-8, 0.78], [-4, 0.42], [-1.5, 0.13], [0, 0], [1.2, -0.18], [4, -0.17], [8, -0.13 + c(8)], [9.5, -0.12 + c(9.5)], [10.6, -0.1 + c(10.6)], [11.45, -0.08 + c(11.45)]]; };
-  BOZ.hw = s => (s < 0.53 ? 0.28 - 0.08 * sm(0, 0.53, s) : 0.2 - 0.1 * sm(0.56, 1.0, s) - 0.04 * sm(0.985, 1, s));
+  const BOZ = { ring: { cx: -14.1, cy: 3.1, rx: 1.45, ry: 1.35, wall: 0.33, th: 0.32 }, th: 0.33, ratchet: { x0: -12.9, x1: -11.9, y: 1.0 }, box: { l: 2.4, h: 0.76, t: 0.64, slant: 0.45 }, ang: 0.06, center: [-2.1, 0, 0.6], size: 26.0 };
+  BOZ.z = x => 1.4 * sm(1.75, 8.25, x); // S-curve: jaws leave the ring plane and return parallel to it
+  BOZ.cl = isB => { const c = x => (isB ? -1 : 1) * 0.3 * Math.pow(sm(6.96, 10.0, x), 1.6); // both jaws bend the same way near the tip
+    return [...neck(BOZ.ring, 1.0), [-9, 0.82], [-4.5, 0.45], [-1.5, 0.13], [0, 0], [1.04, -0.18], [3.48, -0.17], [6.96, -0.13 + c(6.96)], [8.27, -0.12 + c(8.27)], [9.22, -0.1 + c(9.22)], [9.96, -0.08 + c(9.96)]]; };
+  BOZ.hw = s => (s < 0.6 ? 0.28 - 0.08 * sm(0, 0.6, s) : 0.2 - 0.1 * sm(0.63, 1.0, s) - 0.04 * sm(0.985, 1, s));
   BOZ.jaw = () => {}; // the jaw is the distal part of the shank bar (serrations lie on the closed faces and are not modeled)
   // ---------------- cervical biopsy punch: long shanks, short jaws that end in two sharp biting cups ----------------
-  const PUN = { ring: { cx: -16.8, cy: 3.1, rx: 1.25, ry: 1.18, wall: 0.3, th: 0.32 }, th: 0.32, ratchet: { x0: -15.5, x1: -14.5, y: 0.75 }, box: { l: 1.5, h: 0.7, t: 0.62, slant: 0.3 }, ang: 0.07, center: [-5.4, 0, 0], size: 24.0 };
-  PUN.cl = () => [...neck(PUN.ring, 0.75), [-12, 0.6], [-6, 0.31], [-2, 0.1], [0, 0], [1.0, -0.13], [2.6, -0.15], [3.4, -0.2], [4.3, -0.235], [5.0, -0.22], [5.3, -0.18]];
-  PUN.hw = s => (s < 0.75 ? 0.27 - 0.08 * sm(0, 0.75, s) : 0.19 - 0.105 * sm(0.78, 0.9, s));
+  const PUN = { ring: { cx: -18.15, cy: 2.75, rx: 1.45, ry: 1.33, wall: 0.31, th: 0.32 }, th: 0.32, ratchet: { x0: -16.6, x1: -15.6, y: 0.75 }, box: { l: 2.4, h: 0.72, t: 0.62, slant: 0.45 }, ang: 0.07, center: [-7.6, 0, 0], size: 24.0 };
+  PUN.cl = () => [...neck(PUN.ring, 0.75), [-12, 0.55], [-6, 0.29], [-2, 0.09], [0, 0], [0.75, -0.17]];
+  PUN.hw = s => 0.27 - 0.06 * sm(0, 0.97, s);
   PUN.jaw = (g, steel, isB, jog) => {
-    // slotted neck: thin rail bowing out, then the cup
-    // biting cup: an oval shell whose sharp rim lies on the closing plane (y = 0), opening toward the other jaw
-    const prof = arc(0, 0, 1, -Math.PI / 2, 0, 12).map(([x, y]) => [Math.max(0.001, x), y]);
-    const cup = U.mesh(shell(prof, 0.22, 40), steel, 'jaws'); cup.scale.set(0.45, 0.26, 0.26); cup.position.set(5.55, 0.0, jog(5.55)); g.add(cup);
-    if (isB) g.add(cone([5.92, -0.05, jog(5.9)], [-0.45, 1, 0], 0.15, 0.05, steel, 'jaws')); // tooth on the lower jaw
+    // each jaw is half of a closed, rounded biting head (~1 cm wide closed, ~4.4 cm from the pivot) whose cupped inner edges leave an
+    // elongated window (~2.5 x 0.35 cm) between them; the edges meet at the heel and at the rounded tip
+    const outer = x => (x < 1.6 ? -0.2 - 0.21 * sm(0.5, 1.6, x) : x < 3.7 ? -0.41 : -0.41 * Math.sqrt(Math.max(0, 1 - Math.pow((x - 3.7) / 0.61, 2)))); // + 0.09 bevel
+    const inner = x => -0.1 - 0.17 * sm(1.45, 1.85, x) * (1 - sm(3.45, 3.85, x));
+    const top = [], bot = []; for (let x = 0.5; x <= 4.3; x += 0.025) { const i = inner(x); top.push([x, i]); bot.push([x, Math.min(outer(x), i - 0.004)]); }
+    const sh = new T.Shape([...top, ...bot.reverse()].map(q => new T.Vector2(q[0], q[1])));
+    g.add(U.mesh(U.extrude(sh, 0.46, 0.09), steel, 'jaws'));
+    if (isB) g.add(cone([4.18, -0.05, 0], [-0.4, 1, 0], 0.12, 0.05, steel, 'jaws')); // small tooth at the tip of the lower jaw
   };
 
   const reg = (id, def) => { ST3D.models[id] = Object.assign({ id, recordId: id, hasArticulation: false, parts: [], partViews: {} }, def); };
@@ -143,25 +146,25 @@
   const fPV = { rings: 'front', ratchet: 'ratchet', shanks: 'side', box: 'box', jaws: 'jawsOblique' };
 
   reg('jacobs', { build: ringForceps(JAC), hasArticulation: true, parts: FPARTS, partViews: fPV, views: fViews(JAC, 5.2, 0, { teeth: { pos: [8.4, 1.4, 2.4], tgt: [6.6, 0, 0] } }),
-    status: { state: 'complete-v1', reviewed: false, note: 'Procedural model compared against the student’s tray photo: long straight ring-handled forceps with short, narrow slotted jaws (about 5 cm) that hook inward at the tip, so the jaws look like a closed slot, unlike the long open loop of the Skene on the same tray. Teeth are modeled as 2 × 2 incurved points as listed in a catalog; the photo is too small to count them. Ratchet, ring and box sizes are approximations.' },
+    status: { state: 'complete-v1', reviewed: true, note: 'Procedural model compared against the student’s tray photo: long straight ring-handled forceps with short, narrow slotted jaws (about 5 cm) that hook inward at the tip, so the jaws look like a closed slot, unlike the long open loop of the Skene on the same tray. Teeth are modeled as 2 × 2 incurved points as listed in a catalog; the photo is too small to count them. Ratchet, ring and box sizes are approximations.' },
     dims: 'About 21.5 cm (8½ in), 2 × 2 teeth (MedGyn Jacobs 8½ in, 215 mm). Jaw length about 6.5 cm measured from the tray photo.' });
-  reg('skene', { build: ringForceps(SKE), hasArticulation: true, parts: FPARTS, partViews: fPV, views: fViews(SKE, 9.2, 0, { teeth: { pos: [12.8, 1.6, 2.8], tgt: [10.8, 0, 0] } }),
-    status: { state: 'complete-v1', reviewed: false, note: 'Procedural model compared against the student’s tray photo: the jaws are long (about 11 cm) and bow apart into a long, narrow open loop that closes only at the tip, where each jaw turns in to a single tooth and the two points pass each other. The list writes “singletooth/Skene”; one catalog lists the Skene with 2 × 2 teeth and a side curve, which the top-down photo cannot confirm. Shown straight with one tooth per jaw.' },
-    dims: 'About 25.4 cm (10 in) (MedGyn Skene 10 in, 254 mm; Ambler 9½ in). Jaw length about 11 cm measured from the tray photo.' });
+  reg('skene', { build: ringForceps(SKE), hasArticulation: true, parts: FPARTS, partViews: fPV, views: fViews(SKE, 7.8, 0, { teeth: { pos: [11.0, 1.4, 2.6], tgt: [9.1, 0, 0] } }),
+    status: { state: 'complete-v1', reviewed: true, note: 'Procedural model compared against the student’s tray photo: the jaws are long (about 9.4 cm, 37% of the length) and bow apart into a long, narrow open loop that closes in a smooth rounded end; one sharp tooth per jaw points back into the loop. Long slanted box lock as on the photo. The list writes “singletooth/Skene”; one catalog lists the Skene with 2 × 2 teeth and a side curve, which the top-down photo cannot confirm. Shown straight with one tooth per jaw.' },
+    dims: 'About 25.4 cm (10 in) (MedGyn Skene 10 in, 254 mm; Ambler 9½ in). Jaw length about 9.4 cm measured from the tray photo.' });
   reg('polyp', { build: ringForceps(POL), hasArticulation: true, parts: FPARTS, partViews: fPV, views: fViews(POL, 7.6, 0),
-    status: { state: 'complete-v1', reviewed: false, note: 'Procedural model compared against the student’s tray photo: ratchet right beside the rings, short shanks to a long box lock, then long slender jaws ending in a small oval fenestrated tip. Serrations are shown as small ridges; jaw curvature, ring and box sizes are approximations.' },
+    status: { state: 'complete-v1', reviewed: true, note: 'Procedural model compared against the student’s tray photo: ratchet right beside the rings, short shanks to a long box lock, then long slender jaws ending in a small oval fenestrated tip. Serrations are shown as small ridges; jaw curvature, ring and box sizes are approximations.' },
     dims: 'About 20 cm (8 in) (Laufe-type uterine polyp forceps, Ambler 31-588 / V. Mueller GL1820, about 8 in). Tip oval about 1.5 × 0.6 cm (approximate).' });
-  reg('bozeman', { build: ringForceps(BOZ), hasArticulation: true, parts: FPARTS, partViews: fPV, views: fViews(BOZ, 9.5, 1.45, { side: { pos: [-1, 30, 0.7], tgt: [-1, 0, 0.7] } }),
-    status: { state: 'complete-v1', reviewed: false, note: 'Procedural model compared against the student’s tray photo: long ring-handled forceps whose long, slender jaws (about 11 cm) take up nearly half the length and bend slightly near the tip; the S-curve that lifts the jaws out of the ring plane is seen from the edge-on view (the photo is top-down, so the amount of S-curve is from catalog descriptions, not measured). Partial serrations are simplified to ridges.' },
+  reg('bozeman', { build: ringForceps(BOZ), hasArticulation: true, parts: FPARTS, partViews: fPV, views: fViews(BOZ, 8.0, 1.3, { side: { pos: [-2.1, 20, 0.6], tgt: [-2.1, 0, 0.6] } }),
+    status: { state: 'complete-v1', reviewed: true, note: 'Procedural model compared against the student’s tray photo: long ring-handled forceps whose long, slender jaws (about 10 cm, 38% of the length) take up much of the length and bend slightly near the tip; the S-curve that lifts the jaws out of the ring plane is seen from the edge-on view (the photo is top-down, so the amount of S-curve is from catalog descriptions, not measured). Partial serrations are simplified to ridges.' },
     dims: 'About 26 cm (10¼ in), S-curved, jaw about 10 cm (Sklar 95-374; Aesculap Bozemann-Douglas 260 mm; Surgical Direct GUDID B382SD9061381000).' });
-  reg('punch', { build: ringForceps(PUN), hasArticulation: true, parts: FPARTS, partViews: fPV, views: fViews(PUN, 4.6, 0),
-    status: { state: 'complete-v1', reviewed: false, note: 'Procedural model compared against the student’s tray photo: very long shanks (rings to box about 16 cm) with short jaws whose distal part opens into a narrow slot and ends in two sharp oval biting cups, with a small tooth on the lower jaw. The photo shows ring handles like a long forceps (not the pistol-grip Kevorkian style). Cup size and tooth are approximations.' },
+  reg('punch', { build: ringForceps(PUN), hasArticulation: true, parts: FPARTS, partViews: fPV, views: fViews(PUN, 2.6, 0),
+    status: { state: 'complete-v1', reviewed: true, note: 'Procedural model compared against the student’s tray photo: very long shanks (rings to box about 18 cm) and a short closed, rounded biting head (about 4.4 cm from the pivot, about 1 cm wide) whose cupped edges leave an elongated window, with a small tooth at the tip of the lower jaw. The photo shows ring handles like a long forceps (not the pistol-grip Kevorkian style). The cup depth, sharpness of the cutting edges and the tooth are approximations.' },
     dims: 'About 24 cm overall; catalog Tischler punch forceps are 8–9 in working length (V. Mueller GL1942/GL1943; Sklar 90-9570). Bite about 7 × 3 mm (approximate).' });
 
   // ---------------- uterine sound: malleable probe, cm marks, flat fluted paddle handle ----------------
   function sound() {
     const g = new T.Group(), steel = U.steel(), dark = darkMat();
-    const path = [[-10.6, 0, 0], [-4, -0.25, 0], [3, -0.56, 0], [8.4, -0.82, 0], [9.6, -1.06, 0], [10.6, -1.27, 0], [11.6, -1.31, 0], [13.6, -1.16, 0], [16.4, -0.92, 0]];
+    const path = [[-10.6, 0, 0], [-4, -0.25, 0], [3, -0.56, 0], [6.9, -0.78, 0], [8.1, -1.04, 0], [9.1, -1.25, 0], [10.1, -1.3, 0], [12.8, -1.14, 0], [16.4, -0.92, 0]];
     const L = lenOf(path), shaft = U.mesh(rod(path, s => { const d = s * L, e = (1 - s) * L; return e < 0.2 ? 0.185 : 0.155 + 0.13 * (1 - sm(0, 0.9, d)) + 0.04 * sm(0.7, 0.2, e); }, 360, 20), steel, 'shaft');
     g.add(shaft);
     const olive = U.mesh(new T.SphereGeometry(0.2, 24, 16), steel, 'shaft'); olive.position.copy(shaft.geometry.userData.curve.getPointAt(1)); g.add(olive);
@@ -171,37 +174,36 @@
       const m = new T.Mesh(new T.TorusGeometry(0.158, five ? 0.022 : 0.013, 6, 28), dark); m.position.copy(P); m.quaternion.setFromUnitVectors(new T.Vector3(0, 0, 1), tg); m.userData.part = 'marks'; g.add(m); }
     // collar and flat club-shaped handle with longitudinal flutes on both faces
     const col = U.mesh(new T.CylinderGeometry(0.3, 0.3, 0.55, 24), steel, 'handle'); col.rotation.z = Math.PI / 2; col.position.x = -10.75; g.add(col);
-    const hwH = x => (x > -11.0 ? 0.3 : x > -12.0 ? 0.3 + 0.08 * sm(-11.0, -12.0, x) : 0.38 + 0.6 * sm(-12.0, -14.6, x));
-    const outline = []; for (let x = -10.9; x >= -16.5; x -= 0.1) outline.push([x, hwH(x)]);
-    const endArc = arc(-16.55 + 0.98, 0, 0.98, Math.PI / 2, 3 * Math.PI / 2, 14).slice(1, -1);
-    const pts = [...outline.filter(p => p[0] > -15.57), ...endArc, ...outline.filter(p => p[0] > -15.57).reverse().map(([x, y]) => [x, -y])];
+    const hwH = x => Math.max(x > -11.0 ? 0.3 : x > -13.2 ? 0.3 + 0.08 * sm(-11.0, -12.0, x) : 0, 0.98 * Math.sqrt(Math.max(0, 1 - Math.pow((x + 14.55) / 2.0, 2)))); // neck, then an elliptical paddle
+    const outline = []; for (let x = -10.9; x >= -16.5; x -= 0.05) outline.push([x, hwH(x)]);
+    const pts = [...outline, [-16.55, 0], ...outline.slice().reverse().map(([x, y]) => [x, -y])];
     g.add(U.mesh(U.extrude(new T.Shape(pts.map(p => new T.Vector2(p[0], p[1]))), 0.38, 0.1), steel, 'handle'));
     for (const z of [0.19, -0.19]) for (const k of [-0.6, -0.2, 0.2, 0.6]) {
-      const fp = []; for (let x = -12.6; x >= -16.0; x -= 0.3) fp.push([x, k * hwH(Math.max(x, -15.4)) * 0.85 * (x < -15.4 ? Math.sqrt(Math.max(0.05, 1 - Math.pow((x + 15.4) / 1.1, 2))) : 1), z]);
+      const fp = []; for (let x = -12.9; x >= -16.0; x -= 0.25) fp.push([x, k * hwH(x) * 0.85, z]);
       g.add(U.mesh(U.tube(fp, 0.045, false, 40), steel, 'handle'));
     }
     return { group: g, setOpen() {}, center: new T.Vector3(0, 0, 0), size: 33 };
   }
   reg('sound', { build: sound, parts: [['shaft', 'Malleable shaft'], ['marks', 'Centimeter depth marks'], ['handle', 'Flat handle']], partViews: { shaft: 'oblique', marks: 'marks', handle: 'handle' },
-    views: views([0, 0, 0], 33, { jawsOblique: { pos: [17.6, 1.4, 5.4], tgt: [14.2, -1.1, 0] }, tip: { pos: [24, -0.4, 1.4], tgt: [16.2, -0.92, 0] }, marks: { pos: [4.5, 1.0, 9], tgt: [4.5, -0.55, 0] }, handle: { pos: [-13.6, 3, 8.5], tgt: [-13.6, 0, 0] } }),
-    status: { state: 'complete-v1', reviewed: false, note: 'Procedural model compared against the student’s tray photo: long slender probe with a small S-kink about 7 cm from the tip, after which the tip section angles gently up, a blunt slightly bulbous tip, fine depth marks along the shaft and a flat club-shaped handle with longitudinal flutes behind a small collar. The bend angle is taken from the photo (the shaft is malleable, so it varies). Marks are drawn every centimeter from 2 to 20 cm, a common layout; the exact scale on the tray instrument could not be read.' },
+    views: views([0, 0, 0], 33, { jawsOblique: { pos: [17.6, 1.4, 5.4], tgt: [14.2, -1.1, 0] }, tip: { pos: [18.6, 0.2, 2.2], tgt: [16.0, -0.95, 0] }, marks: { pos: [4.5, 1.0, 9], tgt: [4.5, -0.55, 0] }, handle: { pos: [-13.6, 3, 8.5], tgt: [-13.6, 0, 0] } }),
+    status: { state: 'complete-v1', reviewed: true, note: 'Procedural model compared against the student’s tray photo: long slender probe with a small S-kink about 7 cm from the tip, after which the tip section angles gently up, a blunt slightly bulbous tip, fine depth marks along the shaft and a flat club-shaped handle with longitudinal flutes behind a small collar. The bend angle is taken from the photo (the shaft is malleable, so it varies). Marks are drawn every centimeter from 2 to 20 cm, a common layout; the exact scale on the tray instrument could not be read.' },
     dims: 'About 33 cm (13 in), malleable, cm scale, flat handle (Ambler Sims uterine sound 13 in; Symmetry 13¼ in / 335 mm).' });
 
   // ---------------- endocervical curette (Kevorkian type): long octagonal handle, slim shaft, small angled cup ----------------
   function endocervical() {
     const g = new T.Group(), steel = U.steel();
-    g.add(U.mesh(rod([[-11.9, 0, 0], [-6, 0, 0], [-1.2, 0, 0]], s => (s < 0.06 ? 0.08 + 0.22 * Math.sqrt(s / 0.06) : 0.3), 60, 8), steel, 'handle'));
+    g.add(U.mesh(rod([[-11.9, 0, 0], [-6, 0, 0], [-1.2, 0, 0]], s => (s < 0.12 ? 0.03 + 0.27 * Math.sqrt(s / 0.12) : 0.3), 90, 8), steel, 'handle'));
     const sh = [[-1.5, 0, 0], [0.5, 0, 0], [6, 0, 0], [10.5, 0, 0], [11.15, 0.12, 0], [11.45, 0.38, 0]], Ls = lenOf(sh);
     g.add(U.mesh(rod(sh, s => { const d = s * Ls; return 0.11 + 0.19 * (1 - sm(0.2, 1.9, d)); }, 200, 16), steel, 'shaft'));
     // cutting cup: small oval basket facing the viewer, its long axis along the bent tip
     const prof = arc(0, 0, 1, -Math.PI / 2, 0, 12).map(([x, y]) => [Math.max(0.001, x), y]);
-    const cup = U.mesh(shell(prof, 0.22, 36), steel, 'cup'); cup.scale.set(0.34, 0.2, 0.17); cup.rotation.set(Math.PI / 2, 0, 0);
-    const cg = new T.Group(); cg.add(cup); cg.position.set(11.62, 0.6, 0.04); cg.rotation.z = 0.95; g.add(cg);
+    const cup = U.mesh(shell(prof, 0.22, 36), steel, 'cup'); cup.scale.set(0.44, 0.26, 0.22); cup.rotation.set(Math.PI / 2, 0, 0);
+    const cg = new T.Group(); cg.add(cup); cg.position.set(11.7, 0.7, 0.04); cg.rotation.z = 0.95; g.add(cg);
     return { group: g, setOpen() {}, center: new T.Vector3(0, 0, 0), size: 24 };
   }
   reg('endocervical', { build: endocervical, parts: [['handle', 'Long octagonal handle'], ['shaft', 'Slim shaft'], ['cup', 'Small cutting cup']], partViews: { handle: 'oblique', shaft: 'front', cup: 'jawsOblique' },
-    views: views([0, 0, 0], 24, { jawsOblique: { pos: [13.6, 2.4, 3.6], tgt: [11.3, 0.4, 0] }, tip: { pos: [17.5, 1.8, 1.4], tgt: [11.5, 0.45, 0] } }),
-    status: { state: 'complete-v1', reviewed: false, note: 'Procedural model compared against the student’s tray photo: long eight-sided handle (almost half the length), a slim shaft and a tip that turns up into a small cutting cup. The cup is drawn as a small oval basket with a sharp rim; its exact size and tooth pattern could not be read from the photo.' },
+    views: views([0, 0, 0], 24, { jawsOblique: { pos: [13.6, 2.4, 3.6], tgt: [11.3, 0.4, 0] }, tip: { pos: [13.9, 1.8, 1.7], tgt: [11.5, 0.5, 0] } }),
+    status: { state: 'complete-v1', reviewed: true, note: 'Procedural model compared against the student’s tray photo: long eight-sided handle (almost half the length), a slim shaft and a tip that turns up into a small cutting cup. The cup is drawn as a small oval basket with a sharp rim; its exact size and tooth pattern could not be read from the photo.' },
     dims: 'About 24 cm (9½ in) measured from the tray photo against the 21.6 cm Jacobs tenaculum; cup about 6 × 3.5 mm (approximate).' });
 
   // ---------------- endometrial (Sims sharp) curettes, set of 4 graduated loops ----------------
@@ -210,14 +212,14 @@
     sizes.forEach((W, i) => {
       const c = new T.Group(); c.position.y = ys[i]; g.add(c);
       // fluted hollow-looking handle: flat paddle, narrow neck toward the shaft, thumb dimple
-      const hw = x => (x > -4.6 ? 0.24 : 0.24 + 0.5 * sm(-4.6, -8.6, x) + 0.06 * sm(-9, -13.4, x)), out = [];
-      for (let x = -4.4; x >= -13.6; x -= 0.1) out.push([x, hw(x)]);
-      const pts = [...out, ...arc(-13.6, 0, hw(-13.6), Math.PI / 2, 3 * Math.PI / 2, 14).slice(1, -1), ...out.slice().reverse().map(([x, y]) => [x, -y])];
+      const hw = x => (x > -4.6 ? 0.24 : 0.24 + 0.5 * sm(-4.6, -8.0, x) + 0.06 * sm(-8.4, -12.1, x)), out = [];
+      for (let x = -4.4; x >= -12.3; x -= 0.1) out.push([x, hw(x)]);
+      const pts = [...out, ...arc(-12.3, 0, hw(-12.3), Math.PI / 2, 3 * Math.PI / 2, 14).slice(1, -1), ...out.slice().reverse().map(([x, y]) => [x, -y])];
       c.add(U.mesh(U.extrude(new T.Shape(pts.map(p => new T.Vector2(p[0], p[1]))), 0.75, 0.26), steel, 'handle'));
-      for (const k of [-0.5, -0.25, 0, 0.25, 0.5]) { const fp = []; for (let x = -8.4; x >= -14.0; x -= 0.3) fp.push([x, k * hw(x) * (x < -13.6 ? Math.sqrt(Math.max(0.05, 1 - Math.pow((x + 13.6) / 0.8, 2))) : 1), 0.37]); c.add(U.mesh(U.tube(fp, 0.04, false, 40), steel, 'handle')); }
-      const dimple = new T.Mesh(new T.CircleGeometry(0.28, 28), U.steel({ color: 0x8d969d, roughness: 0.45 })); dimple.scale.x = 1.25; dimple.position.set(-7.3, 0, 0.377); dimple.userData.part = 'handle'; c.add(dimple);
+      for (const k of [-0.5, -0.25, 0, 0.25, 0.5]) { const fp = []; for (let x = -8.2; x >= -12.7; x -= 0.3) fp.push([x, k * hw(x) * (x < -12.3 ? Math.sqrt(Math.max(0.05, 1 - Math.pow((x + 12.3) / 0.8, 2))) : 1), 0.37]); c.add(U.mesh(U.tube(fp, 0.04, false, 40), steel, 'handle')); }
+      const dimple = new T.Mesh(new T.CircleGeometry(0.28, 28), U.steel({ color: 0x8d969d, roughness: 0.45 })); dimple.scale.x = 1.25; dimple.position.set(-7.0, 0, 0.377); dimple.userData.part = 'handle'; c.add(dimple);
       // shaft
-      const lb = 14.5 - 2.1 * W, sh = [[-4.6, 0, 0], [0, 0, 0], [lb - 0.4, 0, 0], [lb + 0.02, 0, 0]], Ls = lenOf(sh);
+      const lb = 15.9 - 2.1 * W, sh = [[-4.6, 0, 0], [0, 0, 0], [lb - 0.4, 0, 0], [lb + 0.02, 0, 0]], Ls = lenOf(sh);
       c.add(U.mesh(rod(sh, s => 0.13 + 0.07 * (1 - sm(0, 3, s * Ls)) + 0.03 * (1 - sm(0, 0.5, s)), 160, 16), steel, 'shaft'));
       // teardrop loop: apex at the shaft, broad rounded cutting end at the tip; tilted 15 degrees out of the handle plane
       const loop = new T.Group(); loop.position.x = lb; loop.rotation.y = -0.26; c.add(loop);
@@ -226,13 +228,13 @@
       void side; void tipArc;
       loop.add(U.mesh(U.tube(lp, 0.07, true, 160), steel, 'loop'));
       // cutting edge: the distal part of the loop is a broader curved band
-      loop.add(U.mesh(U.bar([[ex - 0.06, R - rc * 1.1], [ex - 0.03, 0], [ex - 0.06, -R + rc * 1.1]], () => 0.08, 0.26, () => 0, 40, 0.035), steel, 'loop'));
+      loop.add(U.mesh(U.bar([[ex, R - rc], [ex, 0], [ex, -R + rc]], t => 0.05 + 0.04 * Math.sin(Math.PI * t), t => 0.13 + 0.13 * Math.sin(Math.PI * t), () => 0, 40, 0.03), steel, 'loop')); // cutting edge, centred on the rim, tapering into the corners
     });
-    return { group: g, setOpen() {}, center: new T.Vector3(0, 0, 0), size: 29 };
+    return { group: g, setOpen() {}, center: new T.Vector3(1.4, 0, 0), size: 29 };
   }
   reg('endometrial', { build: endometrial, parts: [['loop', 'Sharp loop tips (4 sizes)'], ['shaft', 'Shafts'], ['handle', 'Fluted handles']], partViews: { loop: 'jawsOblique', shaft: 'front', handle: 'handle' },
-    views: views([0, 0, 0], 29, { jawsOblique: { pos: [16.4, 4.2, 7.4], tgt: [12.6, 0, 0.3] }, tip: { pos: [21, 0.6, 2], tgt: [13.5, 0, 0] }, handle: { pos: [-10.5, 1, 10], tgt: [-10.5, 0, 0] } }),
-    status: { state: 'complete-v1', reviewed: false, note: 'Procedural model compared against the student’s tray photo: four curettes side by side, each with a triangular loop (apex at the shaft, a straight, thickened cutting edge at the tip) in four graduated widths, a slim shaft and a flat fluted handle with a thumb dimple. Loop widths (about 14, 12, 10 and 8.5 mm) were measured from the photo and are approximate; the list says “confirm sizes”.' },
+    views: views([1.4, 0, 0], 29, { jawsOblique: { pos: [17.8, 4.2, 7.4], tgt: [14.0, 0, 0.3] }, tip: { pos: [21.5, 0.6, 2.4], tgt: [14.9, 0, 0] }, handle: { pos: [-8.6, 1, 10], tgt: [-8.6, 0, 0] } }),
+    status: { state: 'complete-v1', reviewed: true, note: 'Procedural model compared against the student’s tray photo: four curettes side by side, each with a triangular loop (apex at the shaft, a straight, thickened cutting edge at the tip) in four graduated widths, a slim shaft and a flat fluted handle with a thumb dimple. Loop widths (about 14, 12, 10 and 8.5 mm) were measured from the photo and are approximate; the list says “confirm sizes”.' },
     dims: 'About 29 cm (11½ in) each, measured from the tray photo; loops about 0.85–1.4 cm wide (approximate).' });
 
   // ---------------- Hank dilators: set of 6, double-ended, S-curved, fluted larger end, stop collars ----------------
@@ -255,8 +257,8 @@
     return { group: g, setOpen() {}, center: new T.Vector3(0, -0.2, 0), size: 27 };
   }
   reg('cervdil', { build: hanks, parts: [['rods', 'Graduated rods (9/10 to 19/20 Fr)'], ['collars', 'Stop collars']], partViews: { rods: 'oblique', collars: 'collars' },
-    views: views([0, -0.2, 0], 27, { jawsOblique: { pos: [16.5, 1.5, 7], tgt: [11.3, -0.8, 0] }, tip: { pos: [20, -2.4, 2.5], tgt: [13.0, -1.3, 0] }, collars: { pos: [-4.8, 1.5, 7.5], tgt: [-4.8, -0.2, 0] } }),
-    status: { state: 'complete-v1', reviewed: false, note: 'Procedural model compared against the student’s tray photo: six double-ended rods lying side by side, each with a fluted larger end that curves one way, a smooth smaller end that curves the other way, and a small stop collar at the start of each curve. Diameters follow a six-piece Hank set (9/10 to 19/20 French; French ÷ 3 = mm). Curve shape and collar spacing are measured from the photo.' },
+    views: views([0, -0.2, 0], 27, { jawsOblique: { pos: [16.5, 1.5, 7], tgt: [11.3, -0.8, 0] }, tip: { pos: [16.6, -2.4, 2.8], tgt: [12.8, -1.0, 0] }, collars: { pos: [-4.8, 1.5, 7.5], tgt: [-4.8, -0.2, 0] } }),
+    status: { state: 'complete-v1', reviewed: true, note: 'Procedural model compared against the student’s tray photo: six double-ended rods lying side by side, each with a fluted larger end that curves one way, a smooth smaller end that curves the other way, and a small stop collar at the start of each curve. Diameters follow a six-piece Hank set (9/10 to 19/20 French; French ÷ 3 = mm). Curve shape and collar spacing are measured from the photo.' },
     dims: '26.7 cm (10½ in) each, double-ended, sizes 9/10, 11/12, 13/14, 15/16, 17/18, 19/20 Fr (Integra Miltex MH30-500 set of six; 30-505-xxxx singles).' });
 
   // ---------------- metal bowls: two deep stainless bowls as on the tray (side by side; the slider nests the small one inside) ----------------
@@ -265,16 +267,17 @@
     const prof = [[0.001, 0], [3.8, 0], [4.9, 0.18], [5.9, 0.75], [6.6, 1.8], [6.98, 3.4], [7.15, 6.0]];
     const make = (k, part) => { const b = new T.Group(), sh = U.mesh(shell(prof.map(([r, y]) => [r * k, y * k]), 0.09, 96), mat, part); b.add(sh);
       const rim = U.mesh(new T.TorusGeometry(7.15 * k - 0.04, 0.11, 12, 96), mat, part); rim.rotation.x = Math.PI / 2; rim.position.y = 6.0 * k; b.add(rim); b.rotation.x = Math.PI / 2; return b; };
-    const big = make(1, 'large'), small = make(0.63, 'small'); g.add(big, small);
-    const set = k => { big.position.set(0, 5.6, 0); small.position.set(0.8 * (1 - k), -6.4 * (1 - k) + 5.6 * k, 0.12 * k); };
+    const big = make(1, 'large'), small = make(0.76, 'small'); g.add(big, small);
+    // slider: lift the small bowl clear of the large rim, move it over, lower it in (nested)
+    const set = k => { const m = sm(0.3, 0.7, k); big.position.set(0, 5.6, 0); small.position.set(0.8 * (1 - m), -7.45 + 13.05 * m, 6.4 * (sm(0, 0.3, k) - sm(0.7, 1, k)) + 0.15 * k); };
     set(0);
     return { group: g, setOpen: set, center: new T.Vector3(0.3, -0.5, 2.5), size: 26 };
   }
   reg('bowls', { build: bowls, hasArticulation: true, parts: [['large', 'Large bowl (about 14 cm)'], ['small', 'Small bowl (about 9 cm)']], partViews: { large: 'oblique', small: 'jawsOblique' },
-    views: { front: { pos: [0.3, -0.5, 36], tgt: [0.3, -0.5, 2] }, back: { pos: [0.3, -0.5, -32], tgt: [0.3, -0.5, 2] }, side: { pos: [0.3, -34, 3.5], tgt: [0.3, -0.5, 3] }, oblique: { pos: [10, -22, 24], tgt: [0.3, -0.5, 2.5] },
-      jawsOblique: { pos: [7.5, -4.5, 12], tgt: [0, 5.6, 3] }, tip: { pos: [9.5, -9, 9], tgt: [1, -6.4, 2.5] } },
-    status: { state: 'complete-v1', reviewed: false, note: 'Procedural model compared against the student’s tray photo: two deep, round stainless bowls with rolled rims, one about 1.6 times the diameter of the other, shown side by side as photographed. The Open/close slider nests the small bowl inside the large one, the way they are stacked for sterilizing. Sizes come from the photo ratio and a typical solution-bowl listing.' },
-    dims: 'Large about 14.3 cm across × 6 cm deep (22 oz solution bowl, Salvin: 5⅝ × 2¹⁹⁄₃₂ in); small about 9 cm × 3.8 cm. Approximate.' });
+    views: { front: { pos: [0.4, 0, 56], tgt: [0.4, 0, 2] }, back: { pos: [0.4, 0, -52], tgt: [0.4, 0, 2] }, side: { pos: [0.4, -38, 3.5], tgt: [0.4, 0, 3] }, oblique: { pos: [11, -24, 28], tgt: [0.4, 0, 2.5] },
+      jawsOblique: { pos: [7.5, -4.5, 12], tgt: [0, 5.6, 3] }, tip: { pos: [19, -27, 15], tgt: [0.8, -7.45, 2.5] } },
+    status: { state: 'complete-v1', reviewed: true, note: 'Procedural model compared against the student’s tray photo: two deep, round stainless bowls with rolled rims, the small one about three quarters the diameter of the large one, shown side by side as photographed. The Open/close slider nests the small bowl inside the large one, the way they are stacked for sterilizing. Sizes come from the photo ratio and a typical solution-bowl listing.' },
+    dims: 'Large about 14.3 cm across × 6 cm deep (22 oz solution bowl, Salvin: 5⅝ × 2¹⁹⁄₃₂ in); small about 10.9 cm × 4.6 cm. Approximate.' });
 
   // ---------------- Goodell cervical dilator: crossed levers, parallel serrated blades, spreading screw with thumb nut ----------------
   function goodell() {
@@ -282,7 +285,7 @@
     const lever = (sy, part) => { // sy = +1: lever whose handle is at +Y
       const L = new T.Group(), zl = sy * PH;
       const cl = [[-14.7, 4.0], [-13.8, 3.35], [-12.6, 3.0], [-10.5, 2.82], [-8.9, 2.62], [-6, 1.85], [-3, 0.95], [-1, 0.31], [0, 0], [1.5, -0.12], [3.0, -0.06], [4.6, 0.12], [6.3, 0.3], [6.6, 0.32]].map(([x, y]) => [x, sy * y]);
-      L.add(U.mesh(U.bar(cl, s => (s < 0.12 ? 0.55 - 0.23 * sm(0, 0.12, s) : 0.32 - 0.04 * sm(0.6, 0.9, s)), 0.32, () => zl, 300, 0.08), steel, part));
+      L.add(U.mesh(U.bar(cl, s => (s < 0.12 ? 0.58 - 0.22 * sm(0, 0.12, s) : 0.36 - 0.05 * sm(0.6, 0.9, s)), 0.32, () => zl, 300, 0.08), steel, part));
       // boss where the screw passes (A) or is hinged (B)
       const bs = U.mesh(new T.CylinderGeometry(0.42, 0.42, 0.42, 24), steel, 'screw'); bs.rotation.x = Math.PI / 2; bs.position.set(-8.9, sy * 2.62, zl); L.add(bs);
       L.add(rivet(6.3, sy * 0.3, zl + sy * 0.16, 0.12, steel, 'pivot'));
@@ -293,7 +296,7 @@
     // blades: inner edge straight, outer edge serrated, tips curving the same way; tongue under the opposite lever's layer
     const tipC = x => 0.3 * Math.pow(sm(10.6, 13.3, x), 2);
     const blade = sy => { const J = new T.Group(), o = [], i = [];
-      for (let x = 6.9; x <= 13.05; x += 0.05) { const serr = x > 10.2 && x < 12.85 ? 0.05 * Math.pow(Math.abs(Math.sin(((x - 10.2) / 0.15) * Math.PI)), 0.6) : 0; i.push([x, sy * 0.02 + tipC(x)]); o.push([x, sy * (0.36 + serr - 0.04 * sm(7.2, 10, x)) + tipC(x) - (x > 12.85 ? sy * 0.12 * sm(12.85, 13.05, x) : 0)]); }
+      for (let x = 6.9; x <= 13.05; x += 0.05) { const serr = x > 8.7 && x < 12.85 ? 0.05 * Math.pow(Math.abs(Math.sin(((x - 8.7) / 0.15) * Math.PI)), 0.6) : 0; i.push([x, sy * 0.02 + tipC(x)]); o.push([x, sy * (0.36 + serr - 0.04 * sm(7.2, 10, x)) + tipC(x) - (x > 12.85 ? sy * 0.12 * sm(12.85, 13.05, x) : 0)]); }
       const tip = arc(13.05, sy * 0.11 + tipC(13.05), 0.1, sy > 0 ? Math.PI / 2 : -Math.PI / 2, 0, 6);
       const pts = sy > 0 ? [...i, ...tip.reverse(), ...o.reverse()] : [...o, ...tip, ...i.reverse()];
       const sh = new T.Shape(pts.map(p => new T.Vector2(p[0], p[1])));
@@ -318,7 +321,7 @@
   }
   reg('goodell', { build: goodell, hasArticulation: true, parts: [['handles', 'Crossed handles'], ['pivot', 'Pivot and blade pins'], ['jaws', 'Parallel serrated blades'], ['screw', 'Spreading screw and thumb nut']], partViews: { handles: 'front', pivot: 'screw', jaws: 'jawsOblique', screw: 'thumbscrew' },
     views: views([-0.7, 0, 0], 28, { jawsOblique: { pos: [14.6, 4.2, 6.4], tgt: [10.2, 0, 0] }, tip: { pos: [21, 0.4, 2.2], tgt: [12.5, 0, 0] }, screw: { pos: [1.5, 2.2, 6], tgt: [0.5, 0, 0] }, thumbscrew: { pos: [-6.0, 4.5, 11], tgt: [-8.9, 1.0, 0] } }),
-    status: { state: 'complete-v1', reviewed: false, note: 'Procedural model compared against the student’s tray photo: two levers cross at a central pivot, their distal arms run close together to pins that carry two parallel blades with serrated outer edges and slightly curved tips, and a threaded rod hinged to one handle passes through the other with a knurled thumb nut. Squeezing the handles (slider) spreads the blades; on the real instrument a parallel linkage keeps the blades parallel, which the model imitates without modeling every link.' },
+    status: { state: 'complete-v1', reviewed: true, note: 'Procedural model compared against the student’s tray photo: two levers cross at a central pivot, their distal arms run close together to pins that carry two parallel blades with serrated outer edges and slightly curved tips, and a threaded rod hinged to one handle passes through the other with a knurled thumb nut. Squeezing the handles (slider) spreads the blades; on the real instrument a parallel linkage keeps the blades parallel, which the model imitates without modeling every link.' },
     dims: 'About 28 cm (11 in) (Novo Surgical Goodell uterine dilator OB6340-21, 11 in / 28.0 cm, corrugated ends; HNM Goodell 11 in). Blade length about 7 cm measured from the photo.' });
 
   // ---------------- Sims: double-ended speculum with a cylindrical collar + Sims retractor with a ribbed hollow grip ----------------
@@ -326,25 +329,25 @@
     const g = new T.Group(), steel = U.steel();
     // speculum: near blade (+X) bent 90 degrees down, neck, collar, then the far channel and blade (twisted at the collar as photographed)
     const S = new T.Group(); g.add(S);
-    const p1 = [[-1.8, 0], [2, 0], [4.6, 0], ...arc(4.6, -1.0, 1.0, Math.PI / 2, 0, 8).slice(1), [5.6, -3], [5.66, -6], [5.76, -9.3]], L1 = lenOf(p1), b1 = (6.4 + Math.PI / 2) / L1;
+    const p1 = [[-2.2, 0], [2, 0], [4.6, 0], ...arc(4.6, -1.0, 1.0, Math.PI / 2, 0, 8).slice(1), [5.6, -3], [5.66, -6], [5.76, -9.3]], L1 = lenOf(p1), b1 = (6.8 + Math.PI / 2) / L1;
     S.add(U.mesh(trough(p1, s => 1.3 + 2.2 * sm(b1 - 0.22, b1, s), s => 0.1 + 0.5 * sm(b1 - 0.25, b1 + 0.1, s), 0.2, 1.75), steel, 'speculum'));
-    const col = U.mesh(new T.CylinderGeometry(0.95, 0.95, 3.6, 36), steel, 'collar'); col.rotation.z = Math.PI / 2; col.position.x = -3.55; S.add(col);
-    for (const x of [-5.35, -1.75]) { const r = U.mesh(new T.TorusGeometry(0.93, 0.07, 10, 36), steel, 'collar'); r.rotation.y = Math.PI / 2; r.position.x = x; S.add(r); }
-    const mouth = new T.Mesh(new T.CircleGeometry(0.82, 32), darkMat()); mouth.rotation.y = -Math.PI / 2; mouth.position.x = -5.36; mouth.userData.part = 'collar'; S.add(mouth);
-    const far = new T.Group(); far.rotation.x = -0.96; far.position.y = -0.55; S.add(far);
+    const col = U.mesh(new T.CylinderGeometry(0.75, 0.75, 3.6, 36), steel, 'collar'); col.rotation.z = Math.PI / 2; col.position.x = -3.55; S.add(col);
+    for (const x of [-5.35, -1.75]) { const r = U.mesh(new T.TorusGeometry(0.74, 0.07, 10, 36), steel, 'collar'); r.rotation.y = Math.PI / 2; r.position.x = x; S.add(r); }
+    const mouth = new T.Mesh(new T.CircleGeometry(0.64, 32), darkMat()); mouth.rotation.y = -Math.PI / 2; mouth.position.x = -5.36; mouth.userData.part = 'collar'; S.add(mouth);
+    const far = new T.Group(); far.rotation.x = -0.96; far.position.y = -0.25; S.add(far);
     const p2 = [[-5.2, 0], [-9, 0], [-13.8, 0], ...arc(-13.8, -1.0, 1.0, Math.PI / 2, Math.PI, 8).slice(1), [-14.8, -4], [-14.9, -7.6]], L2 = lenOf(p2), b2 = (8.6 + Math.PI / 2) / L2;
-    far.add(U.mesh(trough(p2, s => 1.7 + 1.3 * sm(b2 - 0.3, b2, s), s => -(0.35 + 0.2 * sm(b2 - 0.2, b2, s)), 0.2, 1.5), steel, 'speculum'));
+    far.add(U.mesh(trough(p2, s => 1.2 + 1.8 * sm(b2 - 0.45, b2, s), s => -(0.35 + 0.2 * sm(b2 - 0.2, b2, s)), 0.2, 1.5), steel, 'speculum'));
     // retractor with ribbed hollow grip and hooked end; its larger blade sits outside the speculum's near blade
     const G = new T.Group(); G.position.y = 1.7; g.add(G);
-    const p3 = [[1.0, 0], [5, 0], [7.1, 0], ...arc(7.1, -1.2, 1.2, Math.PI / 2, 0, 8).slice(1), [8.3, -5], [8.15, -9], [7.9, -11.0]], L3 = lenOf(p3), b3 = (6.1 + 0.6 * Math.PI) / L3;
+    const p3 = [[0.4, 0], [5, 0], [7.1, 0], ...arc(7.1, -1.2, 1.2, Math.PI / 2, 0, 8).slice(1), [8.3, -5], [8.15, -9], [7.9, -11.0]], L3 = lenOf(p3), b3 = (6.7 + 0.6 * Math.PI) / L3;
     G.add(U.mesh(trough(p3, s => 1.4 + 2.6 * sm(b3 - 0.25, b3, s), s => 0.15 + 0.6 * sm(b3 - 0.25, b3 + 0.1, s), 0.22, 2.0), steel, 'grip'));
     const hp = [[0.8, 0.25, 0], [-3.5, 1.75, 0], [-8.4, 3.45, 0], [-9.7, 3.85, 0], [-10.9, 3.45, 0], [-11.5, 2.3, 0], [-11.35, 0.75, 0], [-10.95, -0.2, 0]], Lh = lenOf(hp), sh = 9.75 / Lh;
     G.add(U.mesh(rod(hp, s => { if (s < sh) { const u = s / sh, base = 0.6 + 0.75 * u, f = (u * 5) % 1; return base * (0.86 + 0.14 * Math.pow(f, 0.8)) * (u < 0.04 ? 0.7 + 7.5 * u : 1); } const e = (1 - s) * Lh; return (1.05 - 0.3 * (s - sh) / (1 - sh)) * (e < 0.25 ? Math.sqrt(Math.max(0.02, 1 - Math.pow((0.25 - e) / 0.25, 2))) : 1); }, 420, 32), steel, 'grip'));
     return { group: g, setOpen() {}, center: new T.Vector3(-3.2, -3.4, 0), size: 26 };
   }
   reg('sims', { build: sims, parts: [['speculum', 'Double-ended Sims speculum (two blade sizes)'], ['collar', 'Collar on the speculum handle'], ['grip', 'Sims retractor with ribbed hollow grip']], partViews: { speculum: 'blades', collar: 'oblique', grip: 'oblique' },
-    views: views([-3.2, -3.4, 0], 26, { jawsOblique: { pos: [13.5, 2.5, 8.5], tgt: [6.8, -4.5, 0] }, tip: { pos: [10, -18, 6], tgt: [6.7, -9.5, 0] }, blades: { pos: [-4.5, -8, 22], tgt: [-4.5, -4.5, 0] } }),
-    status: { state: 'complete-v1', reviewed: false, note: 'Procedural model compared against the student’s tray photo, which shows two pieces under the “Simms retractor” label: a double-ended speculum (a blade bent about 90 degrees at each end, joined through a cylindrical collar, the far blade lying twisted toward the camera) and a single-bladed Sims-type retractor with a ribbed hollow grip ending in a hook. Both are modeled as photographed. Blade widths (along the viewing axis) cannot be measured from a top-down photo and come from catalog sizes; the collar may be a joint between two parts, which could not be confirmed.' },
+    views: views([-3.2, -3.4, 0], 26, { jawsOblique: { pos: [19, 4, 17], tgt: [5.5, -4.8, 0] }, tip: { pos: [10, -18, 6], tgt: [6.7, -9.5, 0] }, blades: { pos: [-4.5, -6, 40], tgt: [-4.5, -4.5, 0] } }),
+    status: { state: 'complete-v1', reviewed: true, note: 'Procedural model compared against the student’s tray photo, which shows two pieces under the “Simms retractor” label: a double-ended speculum (a blade bent about 90 degrees at each end, joined through a cylindrical collar, the far blade lying twisted toward the camera) and a single-bladed Sims-type retractor with a ribbed hollow grip ending in a hook. Both are modeled as photographed. Blade widths (along the viewing axis) cannot be measured from a top-down photo and come from catalog sizes; the collar may be a joint between two parts, which could not be confirmed.' },
     dims: 'Speculum about 27 cm end to end (photo); blades about 9 × 3.5 cm and 7.5 × 3 cm (Red Cross / MSF Sims size 2: 80 × 35 and 75 × 30 mm). Grip retractor blade about 11 × 4 cm, handle about 9.5 cm (photo). Approximate.' });
 
   // ---------------- Auvard weighted speculum: long concave blade, channel handle with keel, heavy egg-shaped weight ----------------
@@ -357,12 +360,12 @@
     // keel (gusset) under the channel handle, from the blade back to the weight
     const kp = [[-1.0, -0.4], [-0.95, -1.5], [-1.0, -2.2], [-1.22, -3.6]]; for (let t = 0; t <= 1.001; t += 0.1) kp.push([-1.22 - 9.2 * t, -3.6 + 3.15 * Math.pow(t, 0.55)]);
     g.add(U.mesh(U.extrude(new T.Shape(kp.map(q => new T.Vector2(q[0], q[1]))), 0.3, 0.06), steel, 'handle'));
-    const wt = U.mesh(new T.SphereGeometry(1, 48, 32), steel, 'weight'); wt.scale.set(4.0, 2.7, 2.6); wt.position.set(-14.8, -1.3, 0); g.add(wt);
+    const wt = U.mesh(new T.SphereGeometry(1, 48, 32), steel, 'weight'); wt.scale.set(4.0, 2.9, 2.6); wt.position.set(-14.8, -1.3, 0); g.add(wt);
     g.add(U.mesh(U.tube([[-18.5, -0.9, 0], [-19.5, -0.75, 0], [-20.2, -1.05, 0], [-20.25, -1.7, 0], [-19.9, -2.0, 0]], 0.17, false, 60), steel, 'weight'));
     return { group: g, setOpen() {}, center: new T.Vector3(-9.5, -5, 0), size: 24 };
   }
   reg('auvard', { build: auvard, parts: [['blade', 'Long concave blade'], ['handle', 'Channel handle and keel'], ['weight', 'Weight (ball) and end hook']], partViews: { blade: 'jawsOblique', handle: 'oblique', weight: 'weight' },
     views: views([-9.5, -5, 0], 24, { jawsOblique: { pos: [9.5, 2.5, 13], tgt: [-0.8, -5.5, 0] }, tip: { pos: [-1.5, -22, 2], tgt: [-1.4, -10, 0] }, weight: { pos: [-11, 4, 13], tgt: [-15, -1.4, 0] } }),
-    status: { state: 'complete-v1', reviewed: false, note: 'Procedural model compared against the student’s tray photo: a long concave blade bent about 80 degrees from a channel-shaped handle, a flared heel at the bend, a keel under the handle, a large egg-shaped weight and a small hook at the end. The photo shows it lying on its side at an angle, so blade length and the weight’s shape are approximations; the weight is sized to about 1.1 kg (2½ lb) of steel.' },
+    status: { state: 'complete-v1', reviewed: true, note: 'Procedural model compared against the student’s tray photo: a long concave blade bent about 80 degrees from a channel-shaped handle, a flared heel at the bend, a keel under the handle, a large egg-shaped weight and a small hook at the end. The photo shows it lying on its side at an angle, so blade length and the weight’s shape are approximations; the weight is sized to about 1.1 kg (2½ lb) of steel.' },
     dims: 'Blade about 10.5 × 3.8 cm (catalog 3¼ × 1½ in and 4 × 1⅜ in blades; MedGyn 030921-030924, GUDID Surgix/Avalign 2½–3 lb). Overall about 21 cm. Approximate.' });
 })(window);
