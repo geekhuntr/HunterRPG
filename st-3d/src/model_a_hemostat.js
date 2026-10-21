@@ -11,6 +11,14 @@
 (function (root) {
   const T = root.THREE, ST3D = root.ST3D, U = ST3D.kit;
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+  // Make a closed indexed mesh wind outward (positive signed volume). U.bar currently winds its sweep inward, which lets
+  // parts inside a shank (the ratchet boss) show through it; this check stays correct if the kit is fixed later.
+  function outward(g) {
+    const p = g.attributes.position, ix = g.index.array, a = new T.Vector3(), b = new T.Vector3(), c = new T.Vector3(); let v = 0;
+    for (let i = 0; i < ix.length; i += 3) { a.fromBufferAttribute(p, ix[i]); b.fromBufferAttribute(p, ix[i + 1]); c.fromBufferAttribute(p, ix[i + 2]); v += a.dot(b.cross(c)); }
+    if (v < 0) { for (let i = 0; i < ix.length; i += 3) { const t = ix[i + 1]; ix[i + 1] = ix[i + 2]; ix[i + 2] = t; } g.index.needsUpdate = true; g.computeVertexNormals(); }
+    return g;
+  }
 
   // ---------- jaw sweep ----------
   // Section (local, jaw lies below its face): face at y = F (with teeth), chamfers, flat top/bottom, rounded back at y = Fb - w.
@@ -100,7 +108,7 @@
       const xOf = s => -8.62 + s * (J0 + 8.62);
       const hw = s => { const x = xOf(s); return x < -7.7 ? hwX(-7.7) * (0.82 + 0.18 * clamp((x + 8.62) / 0.92, 0, 1)) : x > -0.4 ? Math.min(hwX(x), o.w0 / 2 + 0.03) : hwX(x); };
       const jog = x => zs * 0.075 * U.smooth(-0.48, -0.3, x) * (1 - U.smooth(0.3, 0.46, x));
-      g.add(U.mesh(U.bar(cl, hw, o.shankT, jog, 240, 0.07), steel, 'shanks'));
+      g.add(U.mesh(outward(U.bar(cl, hw, o.shankT, jog, 240, 0.07)), steel, 'shanks'));
       // ratchet boss beside the ring: half thickness (front half on A, back half on B), teeth along the inner edge
       const x0 = -7.62, x1 = -6.3, pitch = 0.26, depth = 0.1, yb = -0.03;
       const pts = [[x0, 0.3], [x1, 0.3], [x1, yb]];
@@ -112,7 +120,7 @@
       const jaw = jawGeometry({ xs: xsU, xg, faceBase: x => sg * curve(x), teeth: x => sg * tri(x), w: jawW, h: jawH, chamfer: o.chamfer, dHalf: D / 2 });
       g.add(U.mesh(jaw, steel, 'jaws'));
       if (isB) { // box lock (on this half) with a flush domed rivet head on each face
-        g.add(U.mesh(U.extrude(U.roundRect(-BOXX + 0.06, -0.37, 2 * BOXX - 0.12, 0.74, 0.1), 0.58, 0.06), steel, 'box'));
+        g.add(U.mesh(U.extrude(U.roundRect(-BOXX + 0.06, -0.4, 2 * BOXX - 0.12, 0.8, 0.1), 0.58, 0.06), steel, 'box'));
         for (const s of [1, -1]) { const d = new T.Mesh(new T.SphereGeometry(0.13, 20, 10), steel.clone()); d.scale.z = 0.32; d.position.z = s * 0.29; d.userData.part = 'box'; d.userData.base = d.material.color.getHex(); g.add(d); }
       }
       return g;
